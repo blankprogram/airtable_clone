@@ -9,7 +9,7 @@ export default {
         sans: ["var(--font-geist-sans)", ...fontFamily.sans],
       },
       blur : {
-        xs: '1px'
+        xs: '0.5px'
       }
     },
   },
