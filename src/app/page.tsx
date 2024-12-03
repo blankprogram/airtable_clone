@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { LatestPost } from "~/app/_components/post";
 import { LandingPage } from "~/app/_components/landing";
 import { auth } from "~/server/auth";
 import { HydrateClient } from "~/trpc/server";
@@ -33,7 +32,6 @@ function LoggedInLanding({ session }: { session: any }) {
         >
           Sign out
         </Link>
-        <LatestPost />
       </div>
     </main>
   );
