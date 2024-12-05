@@ -24,6 +24,7 @@ type Base = RouterOutput["post"]["getBasesForUser"][number];
 function Header({ session }: { session: Session }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
+
     const toggleDropdown = () => {
         setIsDropdownOpen((prev) => !prev);
     };
@@ -132,17 +133,38 @@ function Sidebar({ handleCreateBase }: { handleCreateBase: () => Promise<void> }
 
 
 
+
+
 function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<void> }) {
-    const { data: fetchedBases = [], isLoading } = api.post.getBasesForUser.useQuery();
     const [openMenu, setOpenMenu] = useState<number | null>(null);
 
     const utils = api.useContext();
-    const handleDeleteBase = api.post.deleteBase.useMutation({
-        onSuccess: async () => {
+
+
+
+
+    const deleteBaseMutation = api.post.deleteBase.useMutation({
+        onMutate: async (deletedBase) => {
+            await utils.post.getBasesForUser.cancel();
+            const previousBases = utils.post.getBasesForUser.getData();
+
+            utils.post.getBasesForUser.setData(undefined, (old) =>
+                (old ?? []).filter((base) => base.id !== deletedBase.baseId)
+            );
+
+            return { previousBases };
+        },
+        onError: (err, deletedBase, context) => {
+            if (context?.previousBases) {
+                utils.post.getBasesForUser.setData(undefined, context.previousBases);
+            }
+        },
+        onSettled: async () => {
             await utils.post.getBasesForUser.invalidate();
         },
     });
 
+    const { data: fetchedBases = [], isLoading } = api.post.getBasesForUser.useQuery();
 
     const today = new Date().toISOString().split("T")[0];
     const todayBases = fetchedBases.filter(
@@ -177,7 +199,7 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
                         </div>
 
                         <div className="ml-4 flex flex-col justify-center">
-                            <h3 className="text-xs font-medium">{base.name || "Untitled Base"}</h3>
+                            <h3 className="text-xs font-medium">{base.name}</h3>
                             <p className="text-xs text-gray-500">Base</p>
                         </div>
 
@@ -194,7 +216,7 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
                                     <button
                                         className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
                                         onClick={() =>
-                                            handleDeleteBase.mutateAsync({ baseId: base.id }).catch((error) => {
+                                            deleteBaseMutation.mutateAsync({ baseId: base.id }).catch((error) => {
                                                 console.error("Error deleting base:", error);
                                             })
                                         }
@@ -209,7 +231,6 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
             </div>
         </div>
     );
-
 
     return (
         <main className="px-12 py-8">
@@ -267,7 +288,7 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
                     ),
                     title: "Start from scratch",
                     description: "Create a new blank base with custom tables, fields, and views.",
-                    onClick: handleCreateBase,
+                    onClick: () => handleCreateBase(),
                 }].map((box, index) => (
                     <div
                         key={index}
@@ -281,34 +302,6 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
                         <p className="text-xs text-gray-600">{box.description}</p>
                     </div>
                 ))}
-            </div>
-
-            <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                    <button className="flex items-center gap-2">
-                        Opened by you
-                        <HiOutlineChevronDown className="h-3 w-3" />
-                    </button>
-                    <button className="flex items-center gap-2">
-                        Show all types
-                        <HiOutlineChevronDown className="h-3 w-3" />
-                    </button>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button>
-                        <HiOutlineMenu className="h-5 w-5 text-gray-600" />
-                    </button>
-                    <button>
-                        <svg
-                            width="20"
-                            height="20"
-                            className="text-gray-600"
-                            style={{ fill: "currentColor" }}
-                        >
-                            <use href="/icons/icon_definitions.svg#GridFour" />
-                        </svg>
-                    </button>
-                </div>
             </div>
 
             {isLoading ? (
@@ -327,20 +320,42 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
 
 
 
+
 export function Dashboard({ session }: { session: Session }) {
     const utils = api.useContext();
     const createBaseMutation = api.post.createBaseForUser.useMutation({
-        onSuccess: async () => {
+        onMutate: async (newBase) => {
+            await utils.post.getBasesForUser.cancel();
+            const previousBases = utils.post.getBasesForUser.getData();
+
+            utils.post.getBasesForUser.setData(undefined, (old) => [
+                {
+                    id: Date.now(),
+                    name: newBase.name ?? "Untitled Base",
+                    theme: newBase.theme ?? "407c4a",
+                    updatedAt: new Date(),
+                } as Base,
+                ...(old ?? []),
+            ]);
+
+            return { previousBases };
+        },
+        onError: (err, newBase, context) => {
+            if (context?.previousBases) {
+                utils.post.getBasesForUser.setData(undefined, context.previousBases);
+            }
+        },
+        onSettled: async () => {
             await utils.post.getBasesForUser.invalidate();
         },
     });
 
 
+
     const handleCreateBase = async () => {
         try {
             await createBaseMutation.mutateAsync({
-                name: undefined,
-                theme: undefined,
+
             });
         } catch (error) {
             console.error("Error creating base:", error);
