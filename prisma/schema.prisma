@@ -16,9 +16,9 @@ datasource db {
 
 model Base {
     id        Int      @id @default(autoincrement())
-    name      String
-    theme     String
-    //tables    Table[]
+    name      String @default("Untitled Base")
+    theme     String @default("407c4a")
+    tables    Table[]
 
 
     createdAt DateTime @default(now())
@@ -28,6 +28,16 @@ model Base {
     createdById String
 
     @@index([name])
+}
+model Table {
+    id        Int      @id @default(autoincrement())
+    name      String
+
+    base      Base     @relation(fields: [baseId], references: [id])
+    baseId    Int
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 }
 
 // Necessary for Next auth
