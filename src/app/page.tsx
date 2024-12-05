@@ -1,3 +1,4 @@
+
 import { LandingPage } from "~/app/_components/landing";
 import { Dashboard } from "~/app/_components/dashboard";
 import { auth } from "~/server/auth";

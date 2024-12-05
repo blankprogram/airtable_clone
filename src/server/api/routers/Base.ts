@@ -3,10 +3,9 @@ import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
 export const baseRouter = createTRPCRouter({
-  // Get all bases for the current user
   getBasesForUser: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.session.user.id;
-
+  
     const bases = await ctx.db.base.findMany({
       where: { createdById: userId },
       select: {
@@ -14,35 +13,85 @@ export const baseRouter = createTRPCRouter({
         name: true,
         theme: true,
         updatedAt: true,
+        tables: {
+          select: {
+            id: true,
+          },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+        },
       },
       orderBy: {
         updatedAt: "desc",
       },
     });
-
-    return bases;
+  
+    return bases.map((base) => ({
+      ...base,
+      firstTableId: base.tables[0]?.id ?? null,
+    }));
   }),
+  
 
   createBaseForUser: protectedProcedure
-    .input(
-      z.object({
-        name: z.string().optional(),
-        theme: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const userId = ctx.session.user.id;
+  .input(
+    z.object({
+      name: z.string().optional(),
+      theme: z.string().optional(),
+    })
+  )
+  .mutation(async ({ ctx, input }) => {
+    const userId = ctx.session.user.id;
 
-      const newBase = await ctx.db.base.create({
-        data: {
-          name: input.name,
-          theme: input.theme,
-          createdById: userId,
-        },
-      });
+    const newBase = await ctx.db.base.create({
+      data: {
+        name: input.name,
+        theme: input.theme,
+        createdById: userId,
+      },
+    });
 
-      return newBase;
-    }),
+    const newTable = await ctx.db.table.create({
+      data: {
+        name: "Default Table",
+        baseId: newBase.id,
+      },
+    });
+
+    const nameColumn = await ctx.db.column.create({
+      data: {
+        name: "Name",
+        type: "TEXT",
+        tableId: newTable.id,
+      },
+    });
+
+    const rows = Array.from({ length: 4 }, () => ({ tableId: newTable.id }));
+    await ctx.db.row.createMany({
+      data: rows,
+    });
+
+    const createdRows = await ctx.db.row.findMany({
+      where: { tableId: newTable.id },
+      select: { id: true },
+    });
+
+    const cells = createdRows.map((row) => ({
+      value: "",
+      columnId: nameColumn.id,
+      rowId: row.id,
+    }));
+    await ctx.db.cell.createMany({
+      data: cells,
+    });
+
+    return {
+      ...newBase,
+      firstTableId: newTable.id,
+    };
+  }),
+
+
 
   deleteBase: protectedProcedure
     .input(

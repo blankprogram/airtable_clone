@@ -20,7 +20,6 @@ model Base {
     theme     String @default("407c4a")
     tables    Table[]
 
-
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
@@ -35,12 +34,66 @@ model Table {
 
     base      Base     @relation(fields: [baseId], references: [id])
     baseId    Int
+    columns   Column[]
+    rows      Row[]
+    views     View[]
 
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 }
 
-// Necessary for Next auth
+model Column {
+    id        Int         @id @default(autoincrement())
+    name      String
+    type      ColumnType
+    table     Table       @relation(fields: [tableId], references: [id])
+    tableId   Int
+    cells     Cell[]      
+
+    createdAt DateTime    @default(now())
+    updatedAt DateTime    @updatedAt
+
+    @@index([name])
+}
+
+model Row {
+  id          Int         @id @default(autoincrement())
+  table       Table       @relation(fields: [tableId], references: [id])
+  tableId     Int
+  cells       Cell[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Cell {
+    id          Int         @id @default(autoincrement())
+    value       String      @default("")
+    column      Column      @relation(fields: [columnId], references: [id])
+    columnId    Int
+    row         Row         @relation(fields: [rowId], references: [id])
+    rowId       Int
+
+    @@index([value])
+}
+
+
+model View {
+  id          Int         @id @default(autoincrement())
+  name        String
+  table       Table       @relation(fields: [tableId], references: [id])
+  tableId     Int
+  filters     Json        @default("{}") 
+  sorts       Json        @default("{}")
+  hiddenCols  Json        @default("[]")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum ColumnType {
+  TEXT
+  NUMBER
+}
+
 model Account {
     id                       String  @id @default(cuid())
     userId                   String

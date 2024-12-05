@@ -16,6 +16,9 @@ import {
     HiOutlineShoppingBag,
     HiOutlineUpload,
 } from "react-icons/hi";
+import { useRouter } from "next/navigation";
+
+
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 
@@ -180,57 +183,75 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
     }: {
         title: string;
         bases: Base[];
-    }) => (
-        <div>
-            <h2 className="text-sm mb-2">{title}</h2>
-            <div className="grid grid-cols-5 gap-4 pb-4">
-                {bases.map((base) => (
-                    <div
-                        key={base.id}
-                        className="cursor-pointer p-4 bg-white border border-gray-400 rounded-lg shadow-sm hover:shadow-md flex relative"
-                    >
+    }) => {
+
+        const router = useRouter();
+
+        const handleBaseClick = (baseId: number, firstTableId: number | null) => {
+            if (firstTableId) {
+                router.push(`/base/${baseId}/table/${firstTableId}`);
+            } else {
+                console.error("No tables available for this base");
+            }
+        };
+
+        return (
+            <div>
+                <h2 className="text-sm mb-2">{title}</h2>
+                <div className="grid grid-cols-5 gap-4 pb-4">
+                    {bases.map((base) => (
                         <div
-                            className="flex items-center justify-center w-14 h-14 rounded-xl"
-                            style={{ backgroundColor: `#${base.theme}` }}
+                            key={base.id}
+                            className="cursor-pointer p-4 bg-white border border-gray-400 rounded-lg shadow-sm hover:shadow-md flex relative"
+                            onClick={() => handleBaseClick(base.id, base.firstTableId)}
                         >
-                            <span className="text-white text-lg">
-                                {base.name.slice(0, 2)}
-                            </span>
-                        </div>
-
-                        <div className="ml-4 flex flex-col justify-center">
-                            <h3 className="text-xs font-medium">{base.name}</h3>
-                            <p className="text-xs text-gray-500">Base</p>
-                        </div>
-
-                        <div className="ml-auto relative">
-                            <button
-                                className="absolute right-2 text-gray-600 hover:text-black"
-                                onClick={() => setOpenMenu((prev) => (prev === base.id ? null : base.id))}
+                            <div
+                                className="flex items-center justify-center w-14 h-14 rounded-xl"
+                                style={{ backgroundColor: `#${base.theme}` }}
                             >
-                                ...
-                            </button>
+                                <span className="text-white text-lg">
+                                    {base.name.slice(0, 2)}
+                                </span>
+                            </div>
 
-                            {openMenu === base.id && (
-                                <div className="absolute top-5 left-0  w-32 bg-white shadow-lg border border-gray-300 rounded-lg z-10">
-                                    <button
-                                        className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
-                                        onClick={() =>
-                                            deleteBaseMutation.mutateAsync({ baseId: base.id }).catch((error) => {
-                                                console.error("Error deleting base:", error);
-                                            })
-                                        }
-                                    >
-                                        Delete Base
-                                    </button>
-                                </div>
-                            )}
+                            <div className="ml-4 flex flex-col justify-center">
+                                <h3 className="text-xs font-medium">{base.name}</h3>
+                                <p className="text-xs text-gray-500">Base</p>
+                            </div>
+
+                            <div className="ml-auto relative">
+                                <button
+                                    className="absolute right-2 text-gray-600 hover:text-black"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOpenMenu((prev) => (prev === base.id ? null : base.id));
+                                    }}
+                                >
+                                    ...
+                                </button>
+
+                                {openMenu === base.id && (
+                                    <div className="absolute top-5 left-0  w-32 bg-white shadow-lg border border-gray-300 rounded-lg z-10">
+                                        <button
+                                            className="block w-full px-4 py-2 text-left text-sm hover:bg-gray-100"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                deleteBaseMutation.mutateAsync({ baseId: base.id }).catch((error) => {
+                                                    console.error("Error deleting base:", error);
+                                                });
+                                            }}
+                                        >
+                                            Delete Base
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     return (
         <main className="px-12 py-8">
@@ -304,6 +325,34 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
                 ))}
             </div>
 
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                    <button className="flex items-center gap-2">
+                        Opened by you
+                        <HiOutlineChevronDown className="h-3 w-3" />
+                    </button>
+                    <button className="flex items-center gap-2">
+                        Show all types
+                        <HiOutlineChevronDown className="h-3 w-3" />
+                    </button>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button>
+                        <HiOutlineMenu className="h-5 w-5 text-gray-600" />
+                    </button>
+                    <button>
+                        <svg
+                            width="20"
+                            height="20"
+                            className="text-gray-600"
+                            style={{ fill: "currentColor" }}
+                        >
+                            <use href="/icons/icon_definitions.svg#GridFour" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
             {isLoading ? (
                 <p>Loading...</p>
             ) : (
@@ -317,38 +366,50 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
 }
 
 
-
-
-
-
 export function Dashboard({ session }: { session: Session }) {
     const utils = api.useContext();
+    const router = useRouter();
     const createBaseMutation = api.post.createBaseForUser.useMutation({
         onMutate: async (newBase) => {
             await utils.post.getBasesForUser.cancel();
             const previousBases = utils.post.getBasesForUser.getData();
-
+    
+            const tempId = Date.now();
+    
             utils.post.getBasesForUser.setData(undefined, (old) => [
                 {
-                    id: Date.now(),
+                    id: tempId,
                     name: newBase.name ?? "Untitled Base",
                     theme: newBase.theme ?? "407c4a",
                     updatedAt: new Date(),
+                    firstTableId: null,
                 } as Base,
                 ...(old ?? []),
             ]);
-
-            return { previousBases };
+    
+            return { previousBases, tempId };
         },
+    
+        onSuccess: (data) => {
+            if (data?.firstTableId) {
+                router.push(`/base/${data.id}/table/${data.firstTableId}`);
+            } else {
+                console.error("No tables available for this base");
+            }
+        },
+    
         onError: (err, newBase, context) => {
             if (context?.previousBases) {
                 utils.post.getBasesForUser.setData(undefined, context.previousBases);
             }
         },
+    
         onSettled: async () => {
             await utils.post.getBasesForUser.invalidate();
         },
     });
+    
+    
 
 
 
