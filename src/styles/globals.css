@@ -6,7 +6,5 @@ body {
   @apply text-[#333840];
 }
 
-a {
-  @apply transition hover:text-[#254fad];
-}
+
 

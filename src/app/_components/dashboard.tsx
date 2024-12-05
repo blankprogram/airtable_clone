@@ -416,7 +416,6 @@ export function Dashboard({ session }: { session: Session }) {
     const handleCreateBase = async () => {
         try {
             await createBaseMutation.mutateAsync({
-
             });
         } catch (error) {
             console.error("Error creating base:", error);

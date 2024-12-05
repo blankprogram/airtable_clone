@@ -32,7 +32,7 @@ model Table {
     id        Int      @id @default(autoincrement())
     name      String
 
-    base      Base     @relation(fields: [baseId], references: [id])
+    base     Base   @relation(fields: [baseId], references: [id], onDelete: Cascade)
     baseId    Int
     columns   Column[]
     rows      Row[]
@@ -46,32 +46,31 @@ model Column {
     id        Int         @id @default(autoincrement())
     name      String
     type      ColumnType
-    table     Table       @relation(fields: [tableId], references: [id])
+    table     Table       @relation(fields: [tableId], references: [id], onDelete: Cascade)
+    tableId   Int
+    cells     Cell[]     
+
+    createdAt DateTime    @default(now())
+    updatedAt DateTime    @updatedAt
+}
+
+model Row {
+    id        Int         @id @default(autoincrement())
+    table     Table       @relation(fields: [tableId], references: [id], onDelete: Cascade)
     tableId   Int
     cells     Cell[]      
 
     createdAt DateTime    @default(now())
     updatedAt DateTime    @updatedAt
-
-    @@index([name])
-}
-
-model Row {
-  id          Int         @id @default(autoincrement())
-  table       Table       @relation(fields: [tableId], references: [id])
-  tableId     Int
-  cells       Cell[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
 }
 
 model Cell {
-    id          Int         @id @default(autoincrement())
-    value       String      @default("")
-    column      Column      @relation(fields: [columnId], references: [id])
-    columnId    Int
-    row         Row         @relation(fields: [rowId], references: [id])
-    rowId       Int
+    id        Int         @id @default(autoincrement())
+    value     String      @default("")
+    column    Column      @relation(fields: [columnId], references: [id], onDelete: Cascade)
+    columnId  Int
+    row       Row         @relation(fields: [rowId], references: [id], onDelete: Cascade)
+    rowId     Int
 
     @@index([value])
 }
