@@ -1,11 +1,10 @@
 "use client";
 
-import { PropsWithChildren } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { api } from "~/trpc/react";
 
-export default function Base({ children }: PropsWithChildren) {
+export default function Base() {
   const router = useRouter();
   const { baseId } = useParams();
   const { data: session } = useSession()
@@ -99,7 +98,7 @@ export default function Base({ children }: PropsWithChildren) {
         </div>
       </header>
 
-      <main className="base-content p-4">{children}</main>
+
     </div>
   );
 }
