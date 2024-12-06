@@ -6,5 +6,6 @@ body {
   @apply text-[#333840];
 }
 
-
-
+button {
+  @apply focus:outline-none select-none;
+}

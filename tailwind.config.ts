@@ -11,6 +11,7 @@ export default {
       blur : {
         xs: '0.5px'
       }
+      
     },
   },
   plugins: [],

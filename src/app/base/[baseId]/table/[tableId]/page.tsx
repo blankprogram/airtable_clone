@@ -2,30 +2,128 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 import { api } from "~/trpc/react";
+import { FiChevronDown, FiPlus } from "react-icons/fi";
+import { SketchPicker } from "react-color";
+import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "~/server/api/root";
+import { Table } from "@prisma/client";
+
+type RouterOutput = inferRouterOutputs<AppRouter>;
+
+type Basetype = RouterOutput["post"]["getBaseById"];
+type Tabletype = RouterOutput["post"]["createTableForBase"];
 
 export default function Base() {
-  const router = useRouter();
-  const { baseId } = useParams();
-  const { data: session } = useSession()
-
-  const { data: baseData, isLoading } = api.post.getBaseById.useQuery(
-    { baseId: parseInt(baseId as string, 10) },
+  const { baseId } = useParams<{ baseId: string }>();
+  const { data: baseData, isLoading, refetch } = api.post.getBaseById.useQuery(
+    { baseId: parseInt(baseId, 10) },
     { enabled: !!baseId }
   );
+  const router = useRouter();
+  const [newName, setNewName] = useState<string>("");
+  const [newTheme, setNewTheme] = useState<string>("");
+  const { mutateAsync: updateBase } = api.post.updateBase.useMutation();
+  const { mutateAsync: createTable } = api.post.createTableForBase.useMutation();
 
-  const handleNavigation = (path: string) => {
-    router.push(path);
+  useEffect(() => {
+    if (baseData) {
+      setNewName(baseData.name);
+      setNewTheme(baseData.theme);
+    }
+  }, [baseData]);
+
+  const themeColor = baseData?.theme ? `#${baseData.theme}` : "#107da3";
+  const hoverColor = baseData?.theme
+    ? `#${darkenHex(baseData.theme, 10)}`
+    : "#0e6a8b";
+
+    const handleAddTable = async () => {
+      try {
+        const newTable = await createTable({
+          baseId: parseInt(baseId, 10),
+        });
+        await refetch();
+        router.push(`/base/${baseId}/table/${newTable.id}`);
+      } catch (error) {
+        console.error("Failed to create table:", error);
+      }
+    };
+    
+
+  const handleSave = async () => {
+    try {
+      await updateBase({
+        baseId: parseInt(baseId, 10),
+        name: newName,
+        theme: newTheme,
+      });
+      await refetch();
+    } catch (error) {
+      console.error("Failed to update base:", error);
+    }
   };
 
   return (
     <div className="base-layout">
-      <header className="base-header flex items-center justify-between px-4 py-3 bg-[#107da3] border-b border-gray-300">
+      <BaseHeader
+        baseId = {baseId}
+        isLoading={isLoading}
+        baseData={baseData}
+        themeColor={themeColor}
+        hoverColor={hoverColor}
+        newName={newName}
+        newTheme={newTheme}
+        setNewName={setNewName}
+        setNewTheme={setNewTheme}
+        handleSave={handleSave}
+        handleAddTable={handleAddTable}
+      />
+    </div>
+  );
+}
+
+function BaseHeader({
+  baseId,
+  isLoading,
+  baseData,
+  themeColor,
+  hoverColor,
+  newName,
+  newTheme,
+  setNewName,
+  setNewTheme,
+  handleSave,
+  handleAddTable,
+}: {
+  baseId: string,
+  isLoading: boolean;
+  baseData: Basetype | undefined;
+  themeColor: string;
+  hoverColor: string;
+  newName: string;
+  newTheme: string;
+  setNewName: (name: string) => void;
+  setNewTheme: (theme: string) => void;
+  handleSave: () => void;
+  handleAddTable: () => void;
+}) {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  return (
+    <header>
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{ backgroundColor: themeColor }}
+      >
         <div className="flex items-center space-x-2">
           <button
             aria-label="Go home"
-            className="flex items-center justify-center w-8 h-8"
-            onClick={() => handleNavigation("/")}
+            className="flex h-8 w-8 items-center justify-center"
+            onClick={() => router.push("/")}
           >
             <svg
               width="24"
@@ -40,46 +138,56 @@ export default function Base() {
             </svg>
           </button>
 
-          <div className="flex items-center space-x-2">
-            <span className="font-semibold text-white text-md truncate">
-              {isLoading ? "Loading..." : baseData?.name ?? "Untitled Base"}
-            </span>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              xmlns="http://www.w3.org/2000/svg"
-              className="fill-current text-white"
+          <div className="relative">
+            <div
+              className="flex cursor-pointer select-none items-center space-x-2"
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
-              <path d="M4 6l4 4 4-4"></path>
-            </svg>
+              <span className="text-md truncate font-semibold text-white">
+                {isLoading ? "Loading..." : (baseData?.name ?? "Untitled Base")}
+              </span>
+              <FiChevronDown className="text-white" />
+            </div>
+
+            {isDropdownOpen && (
+              <div className="absolute left-0 top-10 z-10 w-72 rounded bg-white p-6 shadow-lg">
+                <input
+                  type="text"
+                  className="mb-4 w-full rounded border px-2 py-1"
+                  placeholder="Base Name"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                />
+                <div className="mb-4">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Choose Theme Color
+                  </label>
+                  <SketchPicker
+                    color={newTheme ? `#${newTheme}` : "#107da3"}
+                    onChange={(color) => setNewTheme(color.hex.slice(1))}
+                    disableAlpha
+                  />
+                </div>
+                <button
+                  onClick={handleSave}
+                  className="w-full rounded bg-blue-500 py-2 text-white"
+                >
+                  Save
+                </button>
+              </div>
+            )}
           </div>
 
           <nav className="flex items-center space-x-1 pl-2 text-xs">
-            <button
-              onClick={() => handleNavigation("/")}
-              className="px-4 py-2 rounded-full text-white hover:bg-[#0e6a8b]"
-            >
-              Data
-            </button>
-            <button
-              onClick={() => handleNavigation("/automations")}
-              className="px-4 py-2 rounded-full text-white hover:bg-[#0e6a8b]"
-            >
-              Automations
-            </button>
-            <button
-              onClick={() => handleNavigation("/interfaces")}
-              className="px-4 py-2 rounded-full text-white hover:bg-[#0e6a8b]"
-            >
-              Interfaces
-            </button>
-            <button
-              onClick={() => handleNavigation("/forms")}
-              className="px-4 py-2 rounded-full text-white hover:bg-[#0e6a8b]"
-            >
-              Forms
-            </button>
+            {["Data", "Automations", "Interfaces", "Forms"].map((item) => (
+              <button
+                key={item}
+                className="rounded-full px-3 py-1 text-white hover:bg-[var(--hover-color)]"
+                style={{ "--hover-color": hoverColor }}
+              >
+                {item}
+              </button>
+            ))}
           </nav>
         </div>
 
@@ -88,17 +196,68 @@ export default function Base() {
             <img
               src={session.user.image}
               alt="User Profile"
-              className="w-8 h-8 rounded-full"
+              className="h-8 w-8 rounded-full outline outline-1 outline-white"
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-purple-500 text-white flex items-center justify-center">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500 text-white">
               B
             </div>
           )}
         </div>
-      </header>
+      </div>
 
+      <div
+        className="flex items-center justify-between px-4 text-white "
+        style={{ backgroundColor: hoverColor }}
+      >
+        <div className="flex items-center space-x-4">
+          {baseData?.tables?.map((table: NonNullable<Basetype>["tables"][number]) => (
+  <button
+    key={table.id}
+    className="bg-white flex items-center space-x-1 rounded-t-lg py-2 px-2 text-black text-xs"
+    onClick={() => router.push(`/base/${baseId}/table/${table.id}`)}
+  >
+    <span>{table.name}</span>
+    <FiChevronDown />
+  </button>
+))}
+          <FiChevronDown />
+          <button
+            className="flex items-center space-x-1 py-1 text-xs"
+            onClick={handleAddTable}
+          >
+            <FiPlus />
+            <span>Add or Import</span>
+          </button>
 
-    </div>
+        </div>
+
+        <div className="flex items-center justify-center space-x-4">
+          <button className="flex items-center  p-2 text-xs ">
+            <span>Extensions</span>
+          </button>
+          <button className="flex items-center space-x-1  p-2 text-xs ">
+            <span>Tools</span>
+            <FiChevronDown />
+          </button>
+        </div>
+      </div>
+
+    </header>
+  );
+}
+
+// Helper Function to Darken Hex Color
+function darkenHex(hex: string, percent: number) {
+  const num = parseInt(hex, 16);
+  const amt = Math.round(2.55 * percent);
+  const r = (num >> 16) - amt;
+  const g = ((num >> 8) & 0x00ff) - amt;
+  const b = (num & 0x0000ff) - amt;
+
+  return (
+    (0x1000000 + Math.max(0, r) * 0x10000 + Math.max(0, g) * 0x100 + Math.max(0, b))
+      .toString(16)
+      .slice(1)
   );
 }
