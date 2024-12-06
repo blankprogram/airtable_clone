@@ -39,18 +39,18 @@ export default function Base() {
     ? `#${darkenHex(baseData.theme, 10)}`
     : "#0e6a8b";
 
-    const handleAddTable = async () => {
-      try {
-        const newTable = await createTable({
-          baseId: parseInt(baseId, 10),
-        });
-        await refetch();
-        router.push(`/base/${baseId}/table/${newTable.id}`);
-      } catch (error) {
-        console.error("Failed to create table:", error);
-      }
-    };
-    
+  const handleAddTable = async () => {
+    try {
+      const newTable = await createTable({
+        baseId: parseInt(baseId, 10),
+      });
+      await refetch();
+      router.push(`/base/${baseId}/table/${newTable.id}`);
+    } catch (error) {
+      console.error("Failed to create table:", error);
+    }
+  };
+
 
   const handleSave = async () => {
     try {
@@ -68,7 +68,7 @@ export default function Base() {
   return (
     <div className="base-layout">
       <BaseHeader
-        baseId = {baseId}
+        baseId={baseId}
         isLoading={isLoading}
         baseData={baseData}
         themeColor={themeColor}
@@ -179,16 +179,16 @@ function BaseHeader({
           </div>
 
           <nav className="flex items-center space-x-1 pl-2 text-xs">
-  {["Data", "Automations", "Interfaces", "Forms"].map((item) => (
-    <button
-      key={item}
-      className="rounded-full px-3 py-1 text-white hover:bg-[var(--hover-color)]"
-      style={{ "--hover-color": hoverColor } as React.CSSProperties}
-    >
-      {item}
-    </button>
-  ))}
-</nav>
+            {["Data", "Automations", "Interfaces", "Forms"].map((item) => (
+              <button
+                key={item}
+                className="rounded-full px-3 py-1 text-white hover:bg-[var(--hover-color)]"
+                style={{ "--hover-color": hoverColor } as React.CSSProperties}
+              >
+                {item}
+              </button>
+            ))}
+          </nav>
 
         </div>
 
@@ -213,15 +213,15 @@ function BaseHeader({
       >
         <div className="flex items-center space-x-4">
           {baseData?.tables?.map((table: NonNullable<Basetype>["tables"][number]) => (
-  <button
-    key={table.id}
-    className="bg-white flex items-center space-x-1 rounded-t-lg py-2 px-2 text-black text-xs"
-    onClick={() => router.push(`/base/${baseId}/table/${table.id}`)}
-  >
-    <span>{table.name}</span>
-    <FiChevronDown />
-  </button>
-))}
+            <button
+              key={table.id}
+              className="bg-white flex items-center space-x-1 rounded-t-lg py-2 px-2 text-black text-xs"
+              onClick={() => router.push(`/base/${baseId}/table/${table.id}`)}
+            >
+              <span>{table.name}</span>
+              <FiChevronDown />
+            </button>
+          ))}
           <FiChevronDown />
           <button
             className="flex items-center space-x-1 py-1 text-xs"
