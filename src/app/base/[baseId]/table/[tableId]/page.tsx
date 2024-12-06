@@ -15,7 +15,7 @@ type Basetype = RouterOutput["post"]["getBaseById"];
 
 export default function Base() {
   const searchParams = useSearchParams();
-  const theme = searchParams.get("theme") ?? "default-theme";
+  const theme = searchParams.get("theme") ?? "407c4a";
   const name = searchParams.get("name") ?? "Untitled Base";
   const { baseId, tableId } = useParams<{ baseId: string; tableId: string }>();
   const { data: baseData, isLoading, refetch } = api.post.getBaseById.useQuery(
