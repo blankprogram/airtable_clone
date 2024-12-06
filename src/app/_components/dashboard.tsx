@@ -187,13 +187,17 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
 
         const router = useRouter();
 
-        const handleBaseClick = (baseId: number, firstTableId: number | null) => {
+        const handleBaseClick = (baseId: number, firstTableId: number | null, theme: string, name: string) => {
             if (firstTableId) {
-                router.push(`/base/${baseId}/table/${firstTableId}`);
+                router.push(
+                    `/base/${baseId}/table/${firstTableId}?theme=${theme}&name=${encodeURIComponent(name)}`
+                );
             } else {
                 console.error("No tables available for this base");
             }
         };
+
+
 
         return (
             <div>
@@ -203,7 +207,7 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
                         <div
                             key={base.id}
                             className="cursor-pointer p-4 bg-white border border-gray-400 rounded-lg shadow-sm hover:shadow-md flex relative"
-                            onClick={() => handleBaseClick(base.id, base.firstTableId)}
+                            onClick={() => handleBaseClick(base.id, base.firstTableId, base.theme, base.name)}
                         >
                             <div
                                 className="flex items-center justify-center w-14 h-14 rounded-xl"
@@ -373,9 +377,9 @@ export function Dashboard({ session }: { session: Session }) {
         onMutate: async (newBase) => {
             await utils.post.getBasesForUser.cancel();
             const previousBases = utils.post.getBasesForUser.getData();
-    
+
             const tempId = Date.now();
-    
+
             utils.post.getBasesForUser.setData(undefined, (old) => [
                 {
                     id: tempId,
@@ -386,10 +390,10 @@ export function Dashboard({ session }: { session: Session }) {
                 } as Base,
                 ...(old ?? []),
             ]);
-    
+
             return { previousBases, tempId };
         },
-    
+
         onSuccess: (data) => {
             if (data?.firstTableId) {
                 router.push(`/base/${data.id}/table/${data.firstTableId}`);
@@ -397,19 +401,19 @@ export function Dashboard({ session }: { session: Session }) {
                 console.error("No tables available for this base");
             }
         },
-    
+
         onError: (err, newBase, context) => {
             if (context?.previousBases) {
                 utils.post.getBasesForUser.setData(undefined, context.previousBases);
             }
         },
-    
+
         onSettled: async () => {
             await utils.post.getBasesForUser.invalidate();
         },
     });
-    
-    
+
+
 
 
 

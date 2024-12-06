@@ -1,59 +1,54 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { api } from "~/trpc/react";
 import { FiChevronDown, FiPlus } from "react-icons/fi";
 import { SketchPicker } from "react-color";
-import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
+import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
-import { Table } from "@prisma/client";
 
 type RouterOutput = inferRouterOutputs<AppRouter>;
 
 type Basetype = RouterOutput["post"]["getBaseById"];
-type Tabletype = RouterOutput["post"]["createTableForBase"];
 
 export default function Base() {
-  const { baseId } = useParams<{ baseId: string }>();
+  const searchParams = useSearchParams();
+  const theme = searchParams.get("theme") ?? "default-theme";
+  const name = searchParams.get("name") ?? "Untitled Base";
+  const { baseId, tableId } = useParams<{ baseId: string; tableId: string }>();
   const { data: baseData, isLoading, refetch } = api.post.getBaseById.useQuery(
     { baseId: parseInt(baseId, 10) },
     { enabled: !!baseId }
   );
   const router = useRouter();
-  const [newName, setNewName] = useState<string>("");
-  const [newTheme, setNewTheme] = useState<string>("");
+
+  const [localBaseData, setLocalBaseData] = useState<Basetype | undefined>(
+    baseData
+  );
+  const [newName, setNewName] = useState<string>(name);
+  const [newTheme, setNewTheme] = useState<string>(theme);
+
   const { mutateAsync: updateBase } = api.post.updateBase.useMutation();
   const { mutateAsync: createTable } = api.post.createTableForBase.useMutation();
 
   useEffect(() => {
     if (baseData) {
+      setLocalBaseData(baseData);
       setNewName(baseData.name);
       setNewTheme(baseData.theme);
     }
   }, [baseData]);
 
-  const themeColor = baseData?.theme ? `#${baseData.theme}` : "#107da3";
-  const hoverColor = baseData?.theme
-    ? `#${darkenHex(baseData.theme, 10)}`
-    : "#0e6a8b";
-
-  const handleAddTable = async () => {
-    try {
-      const newTable = await createTable({
-        baseId: parseInt(baseId, 10),
-      });
-      await refetch();
-      router.push(`/base/${baseId}/table/${newTable.id}`);
-    } catch (error) {
-      console.error("Failed to create table:", error);
-    }
-  };
-
+  const themeColor = newTheme ? `#${newTheme}` : "#107da3";
+  const hoverColor = newTheme ? `#${darkenHex(newTheme, 10)}` : "#0e6a8b";
 
   const handleSave = async () => {
+    const previousData = localBaseData;
+
     try {
+      setLocalBaseData((prev) => (prev ? { ...prev, name: newName, theme: newTheme } : prev));
       await updateBase({
         baseId: parseInt(baseId, 10),
         name: newName,
@@ -62,6 +57,43 @@ export default function Base() {
       await refetch();
     } catch (error) {
       console.error("Failed to update base:", error);
+      setLocalBaseData(previousData);
+    }
+  };
+
+  const handleAddTable = async () => {
+    const previousTables = localBaseData?.tables ?? [];
+
+    try {
+      const optimisticTable = {
+        id: -1,
+        name: `Table ${previousTables.length + 1}`,
+      };
+
+      setLocalBaseData((prev) => ({
+        ...prev!,
+        tables: [...prev!.tables, optimisticTable],
+      }));
+
+      const newTable = await createTable({
+        baseId: parseInt(baseId, 10),
+      });
+
+      setLocalBaseData((prev) => ({
+        ...prev!,
+        tables: prev!.tables.map((table) =>
+          table.id === -1 ? newTable : table
+        ),
+      }));
+
+      await refetch();
+      router.push(`/base/${baseId}/table/${newTable.id}`);
+    } catch (error) {
+      console.error("Failed to create table:", error);
+      setLocalBaseData((prev) => ({
+        ...prev!,
+        tables: previousTables,
+      }));
     }
   };
 
@@ -69,8 +101,9 @@ export default function Base() {
     <div className="base-layout">
       <BaseHeader
         baseId={baseId}
+        tableId={tableId}
         isLoading={isLoading}
-        baseData={baseData}
+        baseData={localBaseData}
         themeColor={themeColor}
         hoverColor={hoverColor}
         newName={newName}
@@ -86,6 +119,7 @@ export default function Base() {
 
 function BaseHeader({
   baseId,
+  tableId,
   isLoading,
   baseData,
   themeColor,
@@ -97,7 +131,8 @@ function BaseHeader({
   handleSave,
   handleAddTable,
 }: {
-  baseId: string,
+  baseId: string;
+  tableId: string;
   isLoading: boolean;
   baseData: Basetype | undefined;
   themeColor: string;
@@ -112,6 +147,10 @@ function BaseHeader({
   const router = useRouter();
   const { data: session } = useSession();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const sortedTables = baseData?.tables
+    ? [...baseData.tables].sort((a, b) => (a.id === parseInt(tableId, 10) ? -1 : 1))
+    : [];
 
   return (
     <header>
@@ -137,18 +176,16 @@ function BaseHeader({
               <path d="M88.0781,91.8464 L66.1741,102.4224 L63.9501,103.4974 L17.7121,125.6524 C14.7811,127.0664 11.0401,124.9304 11.0401,121.6744 L11.0401,60.0884 C11.0401,58.9104 11.6441,57.8934 12.4541,57.1274 C12.7921,56.7884 13.1751,56.5094 13.5731,56.2884 C14.6781,55.6254 16.2541,55.4484 17.5941,55.9784 L87.7101,83.7594 C91.2741,85.1734 91.5541,90.1674 88.0781,91.8464"></path>
             </svg>
           </button>
-
           <div className="relative">
             <div
               className="flex cursor-pointer select-none items-center space-x-2"
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
               <span className="text-md truncate font-semibold text-white">
-                {isLoading ? "Loading..." : (baseData?.name ?? "Untitled Base")}
+                {newName}
               </span>
               <FiChevronDown className="text-white" />
             </div>
-
             {isDropdownOpen && (
               <div className="absolute left-0 top-10 z-10 w-72 rounded bg-white p-6 shadow-lg">
                 <input
@@ -174,10 +211,11 @@ function BaseHeader({
                 >
                   Save
                 </button>
+
               </div>
+
             )}
           </div>
-
           <nav className="flex items-center space-x-1 pl-2 text-xs">
             {["Data", "Automations", "Interfaces", "Forms"].map((item) => (
               <button
@@ -189,9 +227,7 @@ function BaseHeader({
               </button>
             ))}
           </nav>
-
         </div>
-
         <div className="flex items-center space-x-4">
           {session?.user?.image ? (
             <img
@@ -206,23 +242,27 @@ function BaseHeader({
           )}
         </div>
       </div>
-
       <div
-        className="flex items-center justify-between px-4 text-white "
+        className="flex items-center justify-between px-2 text-white "
         style={{ backgroundColor: hoverColor }}
       >
-        <div className="flex items-center space-x-4">
-          {baseData?.tables?.map((table: NonNullable<Basetype>["tables"][number]) => (
+        <div className="flex items-center ">
+          {sortedTables.map((table) => (
             <button
               key={table.id}
-              className="bg-white flex items-center space-x-1 rounded-t-lg py-2 px-2 text-black text-xs"
+              className={`${table.id === parseInt(tableId, 10)
+                ? "bg-white text-black px-3"
+                : "bg-transparent text-white px-2"
+                } flex items-center space-x-1 rounded-t-sm py-2  text-xs`}
               onClick={() => router.push(`/base/${baseId}/table/${table.id}`)}
             >
               <span>{table.name}</span>
-              <FiChevronDown />
+              {table.id === parseInt(tableId, 10) && <FiChevronDown />}
             </button>
           ))}
-          <FiChevronDown />
+          <div className="px-4">
+            <FiChevronDown></FiChevronDown>
+          </div>
           <button
             className="flex items-center space-x-1 py-1 text-xs"
             onClick={handleAddTable}
@@ -230,9 +270,7 @@ function BaseHeader({
             <FiPlus />
             <span>Add or Import</span>
           </button>
-
         </div>
-
         <div className="flex items-center justify-center space-x-4">
           <button className="flex items-center  p-2 text-xs ">
             <span>Extensions</span>
@@ -243,12 +281,10 @@ function BaseHeader({
           </button>
         </div>
       </div>
-
     </header>
   );
 }
 
-// Helper Function to Darken Hex Color
 function darkenHex(hex: string, percent: number) {
   const num = parseInt(hex, 16);
   const amt = Math.round(2.55 * percent);

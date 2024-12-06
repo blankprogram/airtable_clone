@@ -8,29 +8,25 @@ export const baseRouter = createTRPCRouter({
 
     const bases = await ctx.db.base.findMany({
       where: { createdById: userId },
-      select: {
-        id: true,
-        name: true,
-        theme: true,
-        updatedAt: true,
+      include: {
         tables: {
-          select: {
-            id: true,
-          },
+          select: { id: true },
           orderBy: { createdAt: "asc" },
           take: 1,
         },
       },
-      orderBy: {
-        updatedAt: "desc",
-      },
+      orderBy: { updatedAt: "desc" },
     });
 
     return bases.map((base) => ({
-      ...base,
+      id: base.id,
+      name: base.name,
+      theme: base.theme,
+      updatedAt: base.updatedAt,
       firstTableId: base.tables[0]?.id ?? null,
     }));
   }),
+
 
 
   createBaseForUser: protectedProcedure
@@ -48,20 +44,14 @@ export const baseRouter = createTRPCRouter({
           name: input.name,
           theme: input.theme,
           createdById: userId,
+          tableCount: 1,
         },
       });
 
-      let newTable = await ctx.db.table.create({
+      const newTable = await ctx.db.table.create({
         data: {
-          name: "",
+          name: `Table 1`,
           baseId: newBase.id,
-        },
-      });
-  
-      newTable = await ctx.db.table.update({
-        where: { id: newTable.id },
-        data: {
-          name: `Table ${newTable.id}`,
         },
       });
 
@@ -98,8 +88,6 @@ export const baseRouter = createTRPCRouter({
       };
     }),
 
-
-
   deleteBase: protectedProcedure
     .input(
       z.object({
@@ -133,7 +121,7 @@ export const baseRouter = createTRPCRouter({
       return { success: true, message: "Base deleted successfully" };
     }),
 
-    getBaseById: protectedProcedure
+  getBaseById: protectedProcedure
     .input(z.object({ baseId: z.number() }))
     .query(async ({ ctx, input }) => {
       const base = await ctx.db.base.findUnique({
@@ -149,16 +137,15 @@ export const baseRouter = createTRPCRouter({
           },
         },
       });
-  
+
       if (!base) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Base not found" });
       }
-  
+
       return base;
     }),
-  
 
-    updateBase: protectedProcedure
+  updateBase: protectedProcedure
     .input(
       z.object({
         baseId: z.number(),
@@ -168,16 +155,16 @@ export const baseRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { baseId, name, theme } = input;
-  
+
       const updatedBase = await ctx.db.base.update({
         where: { id: baseId },
         data: { name, theme },
       });
-  
+
       return updatedBase;
     }),
-  
-    createTableForBase: protectedProcedure
+
+  createTableForBase: protectedProcedure
     .input(
       z.object({
         baseId: z.number(),
@@ -186,58 +173,49 @@ export const baseRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { baseId } = input;
-  
-      // Check if the base exists
-      const base = await ctx.db.base.findUnique({ where: { id: baseId } });
-      if (!base) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Base not found" });
-      }
-  
-      
-      let newTable = await ctx.db.table.create({
-        data: {
-          name: "",
-          baseId: baseId,
-        },
+
+      const newTable = await ctx.db.$transaction(async (prisma) => {
+        const base = await prisma.base.update({
+          where: { id: baseId },
+          data: { tableCount: { increment: 1 } },
+          select: { tableCount: true },
+        });
+
+        const table = await prisma.table.create({
+          data: {
+            name: `Table ${base.tableCount}`,
+            baseId: baseId,
+          },
+        });
+
+        const column = await prisma.column.create({
+          data: {
+            name: "Name",
+            type: "TEXT",
+            tableId: table.id,
+          },
+        });
+
+        const rows = Array.from({ length: 4 }, () => ({ tableId: table.id }));
+        await prisma.row.createMany({ data: rows });
+
+        const createdRows = await prisma.row.findMany({
+          where: { tableId: table.id },
+          select: { id: true },
+        });
+
+        const cells = createdRows.map((row) => ({
+          value: "",
+          columnId: column.id,
+          rowId: row.id,
+        }));
+
+        await prisma.cell.createMany({ data: cells });
+
+        return table;
       });
-  
-      newTable = await ctx.db.table.update({
-        where: { id: newTable.id },
-        data: {
-          name: `Table ${newTable.id}`,
-        },
-      });
-  
-      const nameColumn = await ctx.db.column.create({
-        data: {
-          name: "Name",
-          type: "TEXT",
-          tableId: newTable.id,
-        },
-      });
-  
-      const rows = Array.from({ length: 4 }, () => ({ tableId: newTable.id }));
-      await ctx.db.row.createMany({
-        data: rows,
-      });
-  
-      const createdRows = await ctx.db.row.findMany({
-        where: { tableId: newTable.id },
-        select: { id: true },
-      });
-  
-      const cells = createdRows.map((row) => ({
-        value: "",
-        columnId: nameColumn.id,
-        rowId: row.id,
-      }));
-      await ctx.db.cell.createMany({
-        data: cells,
-      });
-  
+
       return newTable;
     }),
-  
-  
 
 });

@@ -19,7 +19,7 @@ model Base {
     name      String @default("Untitled Base")
     theme     String @default("407c4a")
     tables    Table[]
-
+    tableCount Int @default(0)
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
