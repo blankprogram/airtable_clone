@@ -179,16 +179,17 @@ function BaseHeader({
           </div>
 
           <nav className="flex items-center space-x-1 pl-2 text-xs">
-            {["Data", "Automations", "Interfaces", "Forms"].map((item) => (
-              <button
-                key={item}
-                className="rounded-full px-3 py-1 text-white hover:bg-[var(--hover-color)]"
-                style={{ "--hover-color": hoverColor }}
-              >
-                {item}
-              </button>
-            ))}
-          </nav>
+  {["Data", "Automations", "Interfaces", "Forms"].map((item) => (
+    <button
+      key={item}
+      className="rounded-full px-3 py-1 text-white hover:bg-[var(--hover-color)]"
+      style={{ "--hover-color": hoverColor } as React.CSSProperties}
+    >
+      {item}
+    </button>
+  ))}
+</nav>
+
         </div>
 
         <div className="flex items-center space-x-4">
