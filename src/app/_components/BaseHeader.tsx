@@ -43,9 +43,9 @@ export default function BaseHeader({
 
   const { mutateAsync: updateBase } = api.post.updateBase.useMutation();
   const { mutateAsync: createTable } = api.post.createTableForBase.useMutation();
-  
-  const sortedTables = localBaseData?.tables?.sort((a, b) => 
-  (a.id === parseInt(tableId, 10) ? -1 : 1)) ?? [];
+
+  const sortedTables = localBaseData?.tables?.sort((a, b) =>
+    (a.id === parseInt(tableId, 10) ? -1 : 1)) ?? [];
 
 
   useEffect(() => {

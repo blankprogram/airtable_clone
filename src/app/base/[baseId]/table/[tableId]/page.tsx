@@ -15,16 +15,13 @@ export default function Base() {
     { enabled: !!baseId }
   );
 
-
-  
-
   return (
     <div className="base-layout">
       <BaseHeader
         baseId={baseId}
         tableId={tableId}
         baseData={baseData}
-        refetch = {refetch}
+        refetch={refetch}
       />
     </div>
   );
