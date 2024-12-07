@@ -217,5 +217,186 @@ export const baseRouter = createTRPCRouter({
 
       return newTable;
     }),
+    getTableData: protectedProcedure
+    .input(
+      z.object({
+        tableId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const { tableId } = input;
+
+      const table = await ctx.db.table.findUnique({
+        where: { id: tableId },
+        include: {
+          columns: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+            orderBy: { createdAt: "asc" },
+          },
+          rows: {
+            select: {
+              id: true,
+              cells: {
+                select: {
+                  value: true,
+                  columnId: true,
+                },
+              },
+            },
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      });
+
+      if (!table) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Table not found" });
+      }
+
+      const rows = table.rows.map((row) => {
+        const rowData = {
+          id: row.id,
+          ...Object.fromEntries(row.cells.map((cell) => [cell.columnId, cell.value])),
+        };
+        return rowData;
+      });
+
+      return {
+        columns: table.columns.map((column) => ({
+          id: column.id,
+          name: column.name,
+          type: column.type,
+          accessorKey: String(column.id),
+        })),
+        rows,
+        meta: {
+          name: table.name,
+          rowCount: rows.length,
+        },
+      };
+    }),
+    addRow: protectedProcedure
+  .input(
+    z.object({
+      tableId: z.number(),
+    })
+  )
+  .mutation(async ({ ctx, input }) => {
+    const { tableId } = input;
+
+    const newRow = await ctx.db.row.create({
+      data: {
+        tableId,
+      },
+    });
+
+    const columns = await ctx.db.column.findMany({
+      where: { tableId },
+      select: { id: true },
+    });
+
+    const cells = columns.map((column) => ({
+      value: "",
+      columnId: column.id,
+      rowId: newRow.id,
+    }));
+
+    await ctx.db.cell.createMany({
+      data: cells,
+    });
+
+    return newRow;
+  }),
+  addColumn: protectedProcedure
+  .input(
+    z.object({
+      tableId: z.number(),
+      name: z.string(),
+      type: z.enum(["TEXT", "NUMBER"]).default("TEXT"),
+    })
+  )
+  .mutation(async ({ ctx, input }) => {
+    const { tableId, name, type } = input;
+
+    const newColumn = await ctx.db.column.create({
+      data: {
+        tableId,
+        name,
+        type,
+      },
+    });
+
+    const rows = await ctx.db.row.findMany({
+      where: { tableId },
+      select: { id: true },
+    });
+
+    const cells = rows.map((row) => ({
+      value: "",
+      columnId: newColumn.id,
+      rowId: row.id,
+    }));
+
+    await ctx.db.cell.createMany({
+      data: cells,
+    });
+
+    return newColumn;
+  }),
+
+  
+  editCell: protectedProcedure
+  .input(
+    z.object({
+      rowId: z.number(),
+      columnId: z.number(),
+      value: z.string(),
+    })
+  )
+  .mutation(async ({ ctx, input }) => {
+    const { rowId, columnId, value } = input;
+
+    const cell = await ctx.db.cell.findUnique({
+      where: {
+        rowId_columnId: {
+          rowId,
+          columnId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!cell) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Cell not found",
+      });
+    }
+
+
+    await ctx.db.cell.update({
+      where: {
+        rowId_columnId: {
+          rowId,
+          columnId,
+        },
+      },
+      data: {
+        value,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Cell updated successfully",
+    };
+  }),
+    
+    
 
 });

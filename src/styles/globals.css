@@ -9,3 +9,7 @@ body {
 button {
   @apply focus:outline-none select-none;
 }
+
+table {
+  @apply  select-none;
+}

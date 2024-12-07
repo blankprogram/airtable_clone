@@ -52,6 +52,7 @@ export default function BaseHeader({
       setLocalBaseData(baseData);
       setNewName(baseData.name);
       setNewTheme(baseData.theme);
+      
     }
   }, [baseData]);
 
@@ -242,6 +243,7 @@ export default function BaseHeader({
   );
 }
 
+//weird maths magic i learnt
 function darkenHex(hex: string, percent: number) {
   const num = parseInt(hex, 16);
   const amt = Math.round(2.55 * percent);
