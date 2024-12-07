@@ -4,8 +4,8 @@
 import { FiChevronDown, FiPlus } from "react-icons/fi";
 import { SketchPicker } from "react-color";
 import { useSession } from "next-auth/react";
-import { inferRouterOutputs } from "@trpc/server";
-import { AppRouter } from "~/server/api/root";
+import { type inferRouterOutputs } from "@trpc/server";
+import { type AppRouter } from "~/server/api/root";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { api } from "~/trpc/react";
@@ -43,9 +43,8 @@ export default function BaseHeader({
 
   const { mutateAsync: updateBase } = api.post.updateBase.useMutation();
   const { mutateAsync: createTable } = api.post.createTableForBase.useMutation();
+  const tables = localBaseData?.tables ?? [];
 
-  const sortedTables = localBaseData?.tables?.sort((a, b) =>
-    (a.id === parseInt(tableId, 10) ? -1 : 1)) ?? [];
 
 
   useEffect(() => {
@@ -205,7 +204,7 @@ export default function BaseHeader({
         style={{ backgroundColor: hoverColor }}
       >
         <div className="flex items-center ">
-          {sortedTables.map((table) => (
+          {tables.map((table) => (
             <button
               key={table.id}
               className={`${table.id === parseInt(tableId, 10)
