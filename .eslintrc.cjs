@@ -36,7 +36,8 @@ const config = {
           "attributes": false
         }
       }
-    ]
+    ],
+    "@typescript-eslint/await-thenable": "off",
   }
 }
 module.exports = config;

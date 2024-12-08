@@ -74,7 +74,7 @@ export default function BaseHeader({
     }
   };
 
-  const handleAddTable = async () => {
+ const handleAddTable = async () => {
     const previousTables = localBaseData?.tables ?? [];
 
     try {
@@ -99,7 +99,7 @@ export default function BaseHeader({
         ),
       }));
 
-      refetch();
+      await refetch();
       router.push(`/base/${baseId}/table/${newTable.id}`);
     } catch (error) {
       console.error("Failed to create table:", error);
@@ -109,6 +109,7 @@ export default function BaseHeader({
       }));
     }
   };
+  
 
   return (
     <header>

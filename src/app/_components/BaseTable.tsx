@@ -241,6 +241,9 @@ export default function BaseTable({ tableId }: { tableId: string }) {
     };
 
 
+    if (isLoading) {
+        return
+    }
     return (
         <div style={{ overflowX: "auto" }}>
             <table className="table-auto font-light border-collapse">
