@@ -19,17 +19,108 @@ type ColumnData = Omit<RouterOutputs["post"]["getTableData"]["columns"][number],
 };
 
 function TableHeader() {
+    const buttons = [
+        { label: "Views", iconId: "List", style: "text-black" },
+        { divider: true },
+        { label: "Grid View", iconId: "GridFeature", style: "text-blue-700", isGridView: true },
+        { label: "Hide Fields", iconId: "EyeSlash", style: "text-black" },
+        { label: "Filter", iconId: "FunnelSimple", style: "text-black" },
+        { label: "Group", iconId: "Group", style: "text-black" },
+        { label: "Sort", iconId: "ArrowsDownUp", style: "text-black" },
+        { label: "Color", iconId: "PaintBucket", style: "text-black" },
+        { label: "", iconId: "RowHeightSmall", style: "text-black" },
+        { label: "Share and Sync", iconId: "ArrowSquareOut", style: "text-black" },
+    ];
+
     return (
-        <div className="flex items-center justify-between p-2 bg-white border-b border-gray-300">
-            <div className="flex items-center space-x-4">
-                {["Views", "Grid View", "Hide Fields", "Filter", "Group", "Sort", "Color", "Share", "Sync"].map(
-                    (label) => (
-                        <button key={label} className="px-2 py-1 rounded hover:bg-gray-200">
-                            {label}
+        <div
+            id="viewBar"
+            role="region"
+            aria-label="View configuration"
+            className="flex items-center space-x-3 bg-white p-2 border-b border-gray-300"
+        >
+            {buttons.map((button, index) => {
+                if (button.divider) {
+                    return (
+                        <div
+                            key={`divider-${index}`}
+                            className="h-4 w-px bg-gray-300 mx-2"
+                        ></div>
+                    );
+                }
+
+                if (button.isGridView) {
+                    return (
+                        <button
+                            key={button.iconId}
+                            role="button"
+                            className="flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none"
+                            style={{ minHeight: "26px" }}
+                        >
+                            <svg
+                                width="16"
+                                height="16"
+                                className="flex-none"
+                                fill="rgb(22, 110, 225)"
+                                aria-hidden="true"
+                                style={{ shapeRendering: "geometricPrecision" }}
+                            >
+                                <use href={`/icons/icon_definitions.svg#${button.iconId}`} />
+                            </svg>
+
+                            <span
+                                className="strong truncate flex-auto text-gray-700 text-sm ml-1"
+                                style={{ maxWidth: "200px" }}
+                            >
+                                {button.label}
+                            </span>
+
+                            <svg
+                                width="16"
+                                height="16"
+                                className="flex-none mx-1"
+                                fill="currentColor"
+                                aria-hidden="true"
+                                style={{ shapeRendering: "geometricPrecision" }}
+                            >
+                                <use href="/icons/icon_definitions.svg#UsersThree" />
+                            </svg>
+
+                            <svg
+                                width="16"
+                                height="16"
+                                className="flex-none"
+                                fill="currentColor"
+                                aria-hidden="true"
+                                style={{ shapeRendering: "geometricPrecision" }}
+                            >
+                                <use href="/icons/icon_definitions.svg#ChevronDown" />
+                            </svg>
                         </button>
-                    )
-                )}
-            </div>
+                    );
+                }
+
+                return (
+                    <button
+                        key={button.iconId}
+                        role="button"
+                        className="flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none"
+                        style={{ minHeight: "26px" }}
+                    >
+                        <svg
+                            width="16"
+                            height="16"
+                            className={`mr-1 ${button.style}`}
+                            fill="currentColor"
+                            aria-hidden="true"
+                            style={{ shapeRendering: "geometricPrecision" }}
+                        >
+                            <use href={`/icons/icon_definitions.svg#${button.iconId}`} />
+                        </svg>
+                        <span className="text-xs text-gray-700">{button.label}</span>
+                    </button>
+                );
+            })}
         </div>
     );
 }
@@ -136,9 +227,9 @@ export default function BaseTable({ tableId }: { tableId: string }) {
         cell: (info) => (
             <div className="text-center">{info.row.index + 1}</div>
         ),
-        size: 50,
-        minSize: 50,
-        maxSize: 50,
+        size: 40,
+        minSize: 40,
+        maxSize: 40,
         enableResizing: false,
     });
 
@@ -228,9 +319,9 @@ export default function BaseTable({ tableId }: { tableId: string }) {
         getCoreRowModel: getCoreRowModel(),
         columnResizeMode: "onChange",
         defaultColumn: {
-            size: 150,
+            size: 200,
             minSize: 50,
-            maxSize: 300,
+            maxSize: 500,
             enableResizing: true,
         },
     });
@@ -262,7 +353,7 @@ export default function BaseTable({ tableId }: { tableId: string }) {
                                             : flexRender(header.column.columnDef.header, header.getContext())}
 
                                         {index > 0 && (
-                                            <FiChevronDown className="text-gray-500 ml-2" />
+                                            <FiChevronDown className="text-gray-500 " />
                                         )}
                                     </div>
                                     {header.column.getCanResize() && (
@@ -291,7 +382,7 @@ export default function BaseTable({ tableId }: { tableId: string }) {
                                     key={cell.id}
                                     className={`p-0 text-sm bg-white border-b border-gray-300 ${index === 0 ? "text-gray-500" : "border-r border-gray-300"
                                         }`}
-                                    style={{ height: "40px" }}
+                                    style={{ height: "25px" }}
                                 >
                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                 </td>
