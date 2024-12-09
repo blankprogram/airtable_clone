@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState } from "react";
 import {
     type CellContext,
     createColumnHelper,
@@ -19,26 +19,16 @@ type ColumnData = Omit<RouterOutputs["post"]["getTableData"]["columns"][number],
 };
 
 function TableHeader() {
-    const buttons = [
-        "Views",
-        "Grid View",
-        "Hide Fields",
-        "Filter",
-        "Group",
-        "Sort",
-        "Color",
-        "Share",
-        "Sync",
-    ];
-
     return (
         <div className="flex items-center justify-between p-2 bg-white border-b border-gray-300">
             <div className="flex items-center space-x-4">
-                {buttons.map((label) => (
-                    <button key={label} className="px-2 py-1 rounded hover:bg-gray-200">
-                        {label}
-                    </button>
-                ))}
+                {["Views", "Grid View", "Hide Fields", "Filter", "Group", "Sort", "Color", "Share", "Sync"].map(
+                    (label) => (
+                        <button key={label} className="px-2 py-1 rounded hover:bg-gray-200">
+                            {label}
+                        </button>
+                    )
+                )}
             </div>
         </div>
     );
@@ -50,8 +40,8 @@ export default function BaseTable({ tableId }: { tableId: string }) {
     });
 
     const editCellMutation = api.post.editCell.useMutation({
-        onSuccess: () => refetch(),
-        onError: () => refetch(),
+        onSuccess: async () => await refetch(),
+        onError: async () => await refetch(),
     });
 
     const [localRows, setLocalRows] = useState<RowData[]>([]);
@@ -62,75 +52,78 @@ export default function BaseTable({ tableId }: { tableId: string }) {
         value: string;
     } | null>(null);
 
-    useEffect(() => {
+    useMemo(() => {
         if (data) {
             setLocalRows(data.rows || []);
             setLocalColumns(data.columns || []);
         }
     }, [data]);
-
-    const handleAddRow = useCallback(() => {
-        const tempRow: RowData = { id: `temp-${Date.now()}` };
+    const handleAddRow = () => {
+        const tempRow: RowData = {
+            id: `temp-${Date.now()}`,
+        };
 
         setLocalRows((prev) => [...prev, tempRow]);
-        addRowMutation.mutate({ tableId: parseInt(tableId, 10) });
-    }, [tableId]);
 
-    const handleAddColumn = useCallback(() => {
+        addRowMutation.mutate({
+            tableId: parseInt(tableId, 10),
+        });
+    };
+
+    const handleAddColumn = () => {
         const tempColumn: ColumnData = {
             id: null,
             name: `Column ${localColumns.length + 1}`,
             accessorKey: `column_${localColumns.length + 1}`,
             type: "TEXT",
         };
-
         setLocalColumns((prev) => [...prev, tempColumn]);
+
         addColumnMutation.mutate({
             tableId: parseInt(tableId, 10),
             name: tempColumn.name,
             type: tempColumn.type,
         });
-    }, [localColumns, tableId]);
-
+    };
     const addRowMutation = api.post.addRow.useMutation({
-        onSuccess: async (newRow)  => {
+        onSuccess: async (newRow) => {
             setLocalRows((prev) =>
                 prev.map((row) => (row.id === newRow.id ? newRow : row))
             );
             await refetch();
         },
-        onError: () => setLocalRows((prev) => prev.slice(0, -1)),
+        onError: () => {
+            setLocalRows((prev) => prev.slice(0, -1));
+        },
     });
 
     const addColumnMutation = api.post.addColumn.useMutation({
-        onSuccess: () => refetch(),
-        onError: () => setLocalColumns((prev) => prev.slice(0, -1)),
+        onSuccess: async () => await refetch(),
+        onError: () => {
+            setLocalColumns((prev) => prev.slice(0, -1));
+        },
     });
 
-    const updateCellOptimistically = useCallback(
-        (info: CellContext<RowData, unknown>) => {
-            if (!editingCell) return;
+    const updateCellOptimistically = (
+        info: CellContext<RowData, unknown>,
+        editingCell: { rowId: number | string; columnId: number; value: string } | null
+    ) => {
+        if (!editingCell) return;
     
-            setLocalRows((prevRows) =>
-                prevRows.map((row) =>
-                    row.id === editingCell.rowId
-                        ? { ...row, [info.column.id]: editingCell.value }
-                        : row
-                )
-            );
+        setLocalRows((prev) =>
+            prev.map((row) =>
+                row.id === editingCell.rowId
+                    ? { ...row, [info.column.id]: editingCell.value }
+                    : row
+            )
+        );
     
-            editCellMutation.mutate({
-                rowId: editingCell.rowId as number,
-                columnId: editingCell.columnId,
-                value: editingCell.value,
-            });
-    
-            setEditingCell(null);
-        },
-        [editingCell, editCellMutation]
-    );
-    
-
+        editCellMutation.mutate({
+            rowId: editingCell.rowId as number,
+            columnId: editingCell.columnId,
+            value: editingCell.value,
+        });
+    };
     const columnHelper = createColumnHelper<RowData>();
 
     const rowNumberColumn = columnHelper.display({
@@ -140,71 +133,93 @@ export default function BaseTable({ tableId }: { tableId: string }) {
                 <input type="checkbox" />
             </div>
         ),
-        cell: (info) => <div className="text-center">{info.row.index + 1}</div>,
+        cell: (info) => (
+            <div className="text-center">{info.row.index + 1}</div>
+        ),
         size: 50,
         minSize: 50,
         maxSize: 50,
         enableResizing: false,
     });
 
+    
+
+
     const columns = useMemo(() => {
         if (!localColumns.length) return [];
+        const dynamicColumns = localColumns.map((col, colIndex) =>
+            columnHelper.accessor(col.accessorKey as keyof RowData, {
+                id: col.id?.toString() ?? "temp",
 
-        return [
-            rowNumberColumn,
-            ...localColumns.map((col, colIndex) =>
-                columnHelper.accessor(col.accessorKey as keyof RowData, {
-                    id: col.id?.toString() ?? "temp",
-                    header: col.name,
-                    cell: (info) => {
-                        const cellValue = info.getValue() as string;
-                        const rowId = info.row.original.id;
+                header: col.name,
+                cell: (info) => {
+                    const cellValue = info.getValue() as string;
+                    const rowId = info.row.original.id;
+                    const columnId = parseInt(info.column.id, 10);
 
-                        if (
-                            editingCell &&
-                            editingCell.rowId === rowId &&
-                            editingCell.columnId === parseInt(info.column.id, 10)
-                        ) {
-                            return (
-                                <input
-                                    type="text"
-                                    value={editingCell.value}
-                                    onChange={(e) =>
-                                        setEditingCell((prev) =>
-                                            prev ? { ...prev, value: e.target.value } : null
-                                        )
-                                    }
-                                    onBlur={() => updateCellOptimistically(info)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Escape" || e.key === "Tab") {
-                                            e.preventDefault();
-                                            updateCellOptimistically(info);
-                                        }
-                                    }}
-                                    autoFocus
-                                    className="w-full h-full focus:outline-none px-2 py-1 rounded-md border-2 border-blue-500"
-                                />
-                            );
-                        }
-
+                    if (
+                        editingCell &&
+                        editingCell.rowId === rowId &&
+                        editingCell.columnId === columnId
+                    ) {
                         return (
-                            <div
-                                onClick={() =>
-                                    setEditingCell({
-                                        rowId,
-                                        columnId: parseInt(info.column.id, 10),
-                                        value: cellValue || "",
-                                    })
+                            <input
+                                type="text"
+                                value={editingCell.value}
+                                onChange={(e) =>
+                                    setEditingCell((prev) =>
+                                        prev ? { ...prev, value: e.target.value } : null
+                                    )
                                 }
-                                className="cursor-pointer w-full h-full px-2 py-1 flex items-center"
-                            >
-                                {cellValue}
-                            </div>
+                                onBlur={() => {
+                                    updateCellOptimistically(info, editingCell);
+                                    setEditingCell(null);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Escape") {
+                                        updateCellOptimistically(info, editingCell);
+                                        setEditingCell(null);
+                                    } else if (e.key === "Tab") {
+                                        e.preventDefault();
+                                        updateCellOptimistically(info, editingCell);
+
+                                        const nextColIndex = colIndex + 1;
+                                        if (nextColIndex < localColumns.length) {
+                                            const nextColumn = localColumns[nextColIndex];
+                                            if (nextColumn) {
+                                                setEditingCell({
+                                                    rowId,
+                                                    columnId: nextColumn.id!,
+                                                    value: (info.row.original[nextColumn.accessorKey as keyof RowData] || "") as string,
+                                                });
+                                            }
+                                        }
+                                    }
+                                }}
+                                autoFocus
+                                className="w-full h-full focus:outline-none px-2 py-1 rounded-md border-2 border-blue-500"
+                            />
                         );
-                    },
-                })
-            ),
-        ];
+                    }
+
+                    return (
+                        <div
+                            onClick={() =>
+                                setEditingCell({
+                                    rowId: rowId as number,
+                                    columnId,
+                                    value: cellValue || "",
+                                })
+                            }
+                            className="cursor-pointer w-full h-full px-2 py-1 flex items-center"
+                        >
+                            {cellValue}
+                        </div>
+                    );
+                },
+            })
+        );
+        return [rowNumberColumn, ...dynamicColumns];
     }, [localColumns, editingCell]);
 
     const table = useReactTable({
@@ -232,26 +247,20 @@ export default function BaseTable({ tableId }: { tableId: string }) {
                             {headerGroup.headers.map((header, index) => (
                                 <th
                                     key={header.id}
-                                    className={`relative px-2 bg-gray-100 font-light text-black ${
-                                        index === 0
-                                            ? "text-center"
-                                            : "text-left border-r border-gray-300"
-                                    }`}
+                                    className={`relative px-2 bg-gray-100 font-light text-black ${index === 0 ? "text-center" : "text-left border-r border-gray-300"
+                                        }`}
                                     style={{ width: `${header.getSize()}px` }}
                                 >
                                     <div
-                                        className={`${
-                                            index === 0
+                                        className={`${index === 0
                                                 ? "flex justify-center items-center"
                                                 : "flex items-center justify-between"
-                                        }`}
+                                            }`}
                                     >
                                         {header.isPlaceholder
                                             ? null
-                                            : flexRender(
-                                                  header.column.columnDef.header,
-                                                  header.getContext()
-                                              )}
+                                            : flexRender(header.column.columnDef.header, header.getContext())}
+
                                         {index > 0 && (
                                             <FiChevronDown className="text-gray-500 ml-2" />
                                         )}
@@ -280,9 +289,8 @@ export default function BaseTable({ tableId }: { tableId: string }) {
                             {row.getVisibleCells().map((cell, index) => (
                                 <td
                                     key={cell.id}
-                                    className={`p-0 text-sm bg-white border-b border-gray-300 ${
-                                        index === 0 ? "text-gray-500" : "border-r border-gray-300"
-                                    }`}
+                                    className={`p-0 text-sm bg-white border-b border-gray-300 ${index === 0 ? "text-gray-500" : "border-r border-gray-300"
+                                        }`}
                                     style={{ height: "40px" }}
                                 >
                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -291,15 +299,16 @@ export default function BaseTable({ tableId }: { tableId: string }) {
                         </tr>
                     ))}
                     <tr className="hover:bg-gray-100">
-                        <td className="border-l border-b border-gray-300 text-center cursor-pointer bg-white text-gray-500 text-2xl">
+                        <td
+                            className="border-l border-b border-gray-300 text-center cursor-pointer bg-white text-gray-500 text-2xl"
+                        >
                             <button onClick={handleAddRow}>+</button>
                         </td>
                         {Array.from({ length: table.getAllColumns().length - 2 }).map((_, index) => (
                             <td
                                 key={index}
-                                className={`border-b bg-white ${
-                                    index === 0 ? "border-r border-gray-300" : "border-gray-300"
-                                }`}
+                                className={`border-b bg-white ${index === 0 ? "border-r border-gray-300" : "border-gray-300"
+                                    }`}
                             ></td>
                         ))}
                         {table.getAllColumns().length > 1 && (
