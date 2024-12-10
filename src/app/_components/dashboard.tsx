@@ -360,7 +360,14 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
 
             {isLoading ? (
                 <div className="grid grid-cols-5 gap-4 pb-4 " >
-                    {[...Array(10)].map((_, index) => <div key={index} className=" p-12 bg-white  rounded-lg  flex relative animate-pulse"></div>)}
+                    {
+                        Array.from({ length: 10 })
+                            .map((_, index) => (
+                                <div key={index} className=" p-12 bg-white  rounded-lg  flex relative animate-pulse" />
+                            )
+                            )
+                    }
+
 
                 </div>
             ) : (
