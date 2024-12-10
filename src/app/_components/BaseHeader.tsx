@@ -204,11 +204,11 @@ export default function BaseHeader({
         </div>
       </div>
       <div
-        className="flex items-center justify-between px-3 text-white min-h-8"
-        style={{ backgroundColor: hoverColor }}
+        className="flex items-center justify-between  text-white min-h-8"
+        style={{ backgroundColor: isLoading ? hoverColor : themeColor }}
       >
         {!isLoading &&
-          <div className="flex items-center ">
+          <div className="flex items-center px-3 flex-grow rounded-tr-lg " style={{ backgroundColor: hoverColor }} >
             {tables.map((table) => (
               <button
                 key={table.id}
@@ -222,14 +222,15 @@ export default function BaseHeader({
                 {table.id === parseInt(tableId, 10) && <FiChevronDown />}
               </button>
             ))}
+            <button>
+              <div className="flex items-center  ">
 
-            <div className="flex items-center">
-              <div className="h-3 w-px bg-gray-300 mr-2"> </div>
-              <FiChevronDown ></FiChevronDown>
-              <div className="h-3 w-px bg-gray-300 mx-2"> </div>
-            </div>
+                <FiChevronDown className="mx-3"></FiChevronDown>
+                <div className="h-3 w-px bg-gray-100"> </div>
+              </div>
+            </button>
             <button
-              className="flex items-center space-x-1 py-1 text-sm font-light"
+              className="flex items-center space-x-1 py-1 ml-3 text-sm font-light"
               onClick={handleAddTable}
             >
               <FiPlus />
@@ -240,7 +241,7 @@ export default function BaseHeader({
 
 
         {!isLoading &&
-          <div className="flex items-center justify-center space-x-4">
+          <div className="flex items-center justify-center space-x-4 rounded-tl-lg ml-2 px-2" style={{ backgroundColor: hoverColor }}>
             <button className="flex items-center  p-2 text-xs ">
               <span>Extensions</span>
             </button>
