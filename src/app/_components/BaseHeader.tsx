@@ -230,7 +230,7 @@ export default function BaseHeader({
               </div>
             </button>
             <button
-              className="flex items-center space-x-1 py-1 ml-3 text-sm font-light"
+              className="flex items-center space-x-2 py-1 ml-3 text-sm font-light"
               onClick={handleAddTable}
             >
               <FiPlus />

@@ -278,16 +278,14 @@ export default function BaseTable({ tableId }: { tableId: string }) {
     const rowNumberColumn = columnHelper.display({
         id: "rowNumber",
         header: () => (
-            <div className="flex justify-center">
+            <div className="flex justify-start ml-1">
                 <input type="checkbox" />
             </div>
         ),
         cell: (info) => (
-            <div className="text-center">{info.row.index + 1}</div>
+            <div className="text-start ml-4">{info.row.index + 1}</div>
         ),
         size: 40,
-        minSize: 40,
-        maxSize: 40,
         enableResizing: false,
     });
 
@@ -299,6 +297,7 @@ export default function BaseTable({ tableId }: { tableId: string }) {
         const dynamicColumns = localColumns.map((col, colIndex) =>
             columnHelper.accessor(col.accessorKey as keyof RowData, {
                 id: col.id?.toString() ?? "temp",
+
 
                 header: col.name,
                 cell: (info) => {
@@ -346,7 +345,7 @@ export default function BaseTable({ tableId }: { tableId: string }) {
                                     }
                                 }}
                                 autoFocus
-                                className="w-full h-full focus:outline-none px-2 py-1 rounded-md border-2 border-blue-500"
+                                className="w-full h-full focus:outline-none px-2 py-1  border-2 border-blue-500"
                             />
                         );
                     }
@@ -399,22 +398,23 @@ export default function BaseTable({ tableId }: { tableId: string }) {
                 </div>
             ) : (
                 <table className="table-auto border-collapse text-sm">
-                    <thead>
+                    <thead style={{ height: "30px" }}>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <tr key={headerGroup.id} className="border-b border-gray-300">
                                 {headerGroup.headers.map((header, index) => (
                                     <th
                                         key={header.id}
-                                        className={`relative px-2 bg-gray-100 font-light text-black ${index === 0 ? "text-center" : "text-left border-r border-gray-300"
+                                        className={`relative px-2 bg-gray-100 font-normal text-black ${index === 0 ? "text-center" : "text-left border-r border-gray-300"
                                             }`}
                                         style={{ width: `${header.getSize()}px` }}
                                     >
                                         <div
                                             className={`${index === 0
-                                                ? "flex justify-center items-center"
+                                                ? ""
                                                 : "flex items-center justify-between"
                                                 }`}
                                         >
+
                                             {header.isPlaceholder
                                                 ? null
                                                 : flexRender(header.column.columnDef.header, header.getContext())}
@@ -461,9 +461,9 @@ export default function BaseTable({ tableId }: { tableId: string }) {
 
                         <tr className="hover:bg-gray-100 bg-white">
                             <td
-                                className="border-l border-b border-gray-300 text-center cursor-pointer  text-gray-500 text-lg"
+                                className="border-l border-b border-gray-300  text-start text-xl flex cursor-pointer  text-gray-500 "
                             >
-                                <button onClick={handleAddRow}>+</button>
+                                <button className={"ml-3"} onClick={handleAddRow}>+</button>
                             </td>
                             {Array.from({ length: table.getAllColumns().length - 2 }).map((_, index) => (
 
