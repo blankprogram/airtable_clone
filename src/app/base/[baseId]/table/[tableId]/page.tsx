@@ -9,24 +9,25 @@ import BaseTable from "~/app/_components/BaseTable";
 
 export default function Base() {
   const { baseId, tableId } = useParams<{ baseId: string; tableId: string }>();
-  const { data: baseData, refetch } = api.post.getBaseById.useQuery(
+  const { data: baseData, refetch, isLoading } = api.post.getBaseById.useQuery(
     { baseId: parseInt(baseId, 10) },
     { enabled: !!baseId }
   );
 
   return (
-    <div className="bg-[#f7f7f7] min-h-screen">
-      <div className="base-layout">
-        <BaseHeader
-          baseId={baseId}
-          tableId={tableId}
-          baseData={baseData}
-          refetch={refetch}
-        />
-        <div className="table-container">
-          <BaseTable tableId={tableId} />
-        </div>
+    <div className="bg-[#f7f7f7] min-h-screen flex flex-col">
+
+      <BaseHeader
+        baseId={baseId}
+        tableId={tableId}
+        baseData={baseData}
+        isLoading={isLoading}
+        refetch={refetch}
+      />
+      <div className="flex flex-grow ">
+        <BaseTable tableId={tableId} />
       </div>
     </div>
+
   );
 }

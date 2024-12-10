@@ -17,12 +17,14 @@ export default function BaseHeader({
   baseId,
   tableId,
   baseData,
+  isLoading,
   refetch,
 
 }: {
   baseId: string;
   tableId: string;
   baseData: Basetype | undefined;
+  isLoading: boolean
   refetch: () => void;
 
 }) {
@@ -52,7 +54,7 @@ export default function BaseHeader({
       setLocalBaseData(baseData);
       setNewName(baseData.name);
       setNewTheme(baseData.theme);
-      
+
     }
   }, [baseData]);
 
@@ -74,7 +76,7 @@ export default function BaseHeader({
     }
   };
 
- const handleAddTable = async () => {
+  const handleAddTable = async () => {
     const previousTables = localBaseData?.tables ?? [];
 
     try {
@@ -109,7 +111,7 @@ export default function BaseHeader({
       }));
     }
   };
-  
+
 
   return (
     <header>
@@ -195,52 +197,61 @@ export default function BaseHeader({
               className="h-8 w-8 rounded-full outline outline-1 outline-white"
             />
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500 text-white">
-              B
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-500 text-white outline-1 outline">
+
             </div>
           )}
         </div>
       </div>
       <div
-        className="flex items-center justify-between px-2 text-white "
+        className="flex items-center justify-between px-3 text-white min-h-8"
         style={{ backgroundColor: hoverColor }}
       >
-        <div className="flex items-center ">
-          {tables.map((table) => (
+        {!isLoading &&
+          <div className="flex items-center ">
+            {tables.map((table) => (
+              <button
+                key={table.id}
+                className={`${table.id === parseInt(tableId, 10)
+                  ? "bg-white text-black px-4"
+                  : "bg-transparent text-white px-3"
+                  } flex items-center space-x-1 rounded-t-sm py-2  text-xs`}
+                onClick={() => router.push(`/base/${baseId}/table/${table.id}`)}
+              >
+                <span>{table.name}</span>
+                {table.id === parseInt(tableId, 10) && <FiChevronDown />}
+              </button>
+            ))}
+
+            <div className="flex items-center">
+              <div className="h-3 w-px bg-gray-300 mr-2"> </div>
+              <FiChevronDown ></FiChevronDown>
+              <div className="h-3 w-px bg-gray-300 mx-2"> </div>
+            </div>
             <button
-              key={table.id}
-              className={`${table.id === parseInt(tableId, 10)
-                ? "bg-white text-black px-3"
-                : "bg-transparent text-white px-2"
-                } flex items-center space-x-1 rounded-t-sm py-2  text-xs`}
-              onClick={() => router.push(`/base/${baseId}/table/${table.id}`)}
+              className="flex items-center space-x-1 py-1 text-sm font-light"
+              onClick={handleAddTable}
             >
-              <span>{table.name}</span>
-              {table.id === parseInt(tableId, 10) && <FiChevronDown />}
+              <FiPlus />
+              <span>Add or Import</span>
             </button>
-          ))}
-          <div className="px-4">
-            <FiChevronDown></FiChevronDown>
           </div>
-          <button
-            className="flex items-center space-x-1 py-1 text-xs"
-            onClick={handleAddTable}
-          >
-            <FiPlus />
-            <span>Add or Import</span>
-          </button>
-        </div>
-        <div className="flex items-center justify-center space-x-4">
-          <button className="flex items-center  p-2 text-xs ">
-            <span>Extensions</span>
-          </button>
-          <button className="flex items-center space-x-1  p-2 text-xs ">
-            <span>Tools</span>
-            <FiChevronDown />
-          </button>
-        </div>
+        }
+
+
+        {!isLoading &&
+          <div className="flex items-center justify-center space-x-4">
+            <button className="flex items-center  p-2 text-xs ">
+              <span>Extensions</span>
+            </button>
+            <button className="flex items-center space-x-1  p-2 text-xs ">
+              <span>Tools</span>
+              <FiChevronDown />
+            </button>
+          </div>
+        }
       </div>
-    </header>
+    </header >
   );
 }
 
