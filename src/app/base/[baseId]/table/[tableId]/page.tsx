@@ -18,14 +18,14 @@ export default function Base() {
     <div className="bg-[#f7f7f7] min-h-screen flex flex-col">
 
       <BaseHeader
-        baseId={baseId}
+        baseId={parseInt(baseId, 10)}
         tableId={tableId}
         baseData={baseData}
         isLoading={isLoading}
         refetch={refetch}
       />
       <div className="flex flex-grow ">
-        <BaseTable tableId={tableId} />
+        <BaseTable tableId={parseInt(tableId, 10)} />
       </div>
     </div>
 

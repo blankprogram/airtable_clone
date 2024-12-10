@@ -21,7 +21,7 @@ export default function BaseHeader({
   refetch,
 
 }: {
-  baseId: string;
+  baseId: number;
   tableId: string;
   baseData: Basetype | undefined;
   isLoading: boolean
@@ -42,7 +42,7 @@ export default function BaseHeader({
   const [newTheme, setNewTheme] = useState<string>(theme);
   const themeColor = newTheme ? `#${newTheme}` : "#107da3";
   const hoverColor = newTheme ? `#${darkenHex(newTheme, 10)}` : "#0e6a8b";
-
+  const [selectedTable, setTable] = useState<number>(parseInt(tableId, 10));
   const { mutateAsync: updateBase } = api.post.updateBase.useMutation();
   const { mutateAsync: createTable } = api.post.createTableForBase.useMutation();
   const tables = localBaseData?.tables ?? [];
@@ -65,7 +65,7 @@ export default function BaseHeader({
     try {
       setLocalBaseData((prev) => (prev ? { ...prev, name: newName, theme: newTheme } : prev));
       await updateBase({
-        baseId: parseInt(baseId, 10),
+        baseId: baseId,
         name: newName,
         theme: newTheme,
       });
@@ -85,13 +85,14 @@ export default function BaseHeader({
         name: `Table ${previousTables.length + 1}`,
       };
 
+
       setLocalBaseData((prev) => ({
         ...prev!,
         tables: [...prev!.tables, optimisticTable],
       }));
 
       const newTable = await createTable({
-        baseId: parseInt(baseId, 10),
+        baseId: baseId,
       });
 
       setLocalBaseData((prev) => ({
@@ -212,14 +213,15 @@ export default function BaseHeader({
             {tables.map((table) => (
               <button
                 key={table.id}
-                className={`${table.id === parseInt(tableId, 10)
+                className={`${table.id === selectedTable
                   ? "bg-white text-black px-4"
                   : "bg-transparent text-white px-3"
                   } flex items-center space-x-1 rounded-t-sm py-2  text-xs`}
-                onClick={() => router.push(`/base/${baseId}/table/${table.id}`)}
+                onClick={() => { router.push(`/base/${baseId}/table/${table.id}`); setTable(table.id) }}
+
               >
                 <span>{table.name}</span>
-                {table.id === parseInt(tableId, 10) && <FiChevronDown />}
+                {table.id === selectedTable && <FiChevronDown />}
               </button>
             ))}
             <button>
@@ -236,6 +238,8 @@ export default function BaseHeader({
               <FiPlus />
               <span>Add or Import</span>
             </button>
+
+
           </div>
         }
 

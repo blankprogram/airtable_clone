@@ -58,6 +58,7 @@ function TableHeader({ isLoading }: { isLoading: boolean }) {
                     <span className="text-xs text-gray-700">{"Views"}</span>
                 </button>
 
+
                 <button
                     className="flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none"
                     style={{ minHeight: "26px" }}
@@ -73,6 +74,8 @@ function TableHeader({ isLoading }: { isLoading: boolean }) {
                         <use href={`/icons/icon_definitions.svg#${"GridFeature"}`} />
                     </svg>
                 </button>
+
+
                 <div className="px-14 py-2 rounded-md bg-gray-200">
 
 
@@ -81,6 +84,8 @@ function TableHeader({ isLoading }: { isLoading: boolean }) {
 
 
                 </div>
+
+
             </div>
 
 
@@ -154,6 +159,7 @@ function TableHeader({ isLoading }: { isLoading: boolean }) {
                                 <use href="/icons/icon_definitions.svg#ChevronDown" />
                             </svg>
                         </button>
+
                     );
                 }
 
@@ -177,15 +183,21 @@ function TableHeader({ isLoading }: { isLoading: boolean }) {
                         </svg>
                         <span className="text-xs text-gray-700">{button.label}</span>
                     </button>
+
+
                 );
             })}
+            <button className="text-sm font-light">
+                <span>15000 rows</span>
+
+            </button>
         </div>
     );
 }
 
-export default function BaseTable({ tableId }: { tableId: string }) {
+export default function BaseTable({ tableId }: { tableId: number }) {
     const { data, isLoading, refetch } = api.post.getTableData.useQuery({
-        tableId: parseInt(tableId, 10),
+        tableId: tableId,
     });
 
     const editCellMutation = api.post.editCell.useMutation({
@@ -215,7 +227,7 @@ export default function BaseTable({ tableId }: { tableId: string }) {
         setLocalRows((prev) => [...prev, tempRow]);
 
         addRowMutation.mutate({
-            tableId: parseInt(tableId, 10),
+            tableId: tableId,
         });
     };
 
@@ -229,7 +241,7 @@ export default function BaseTable({ tableId }: { tableId: string }) {
         setLocalColumns((prev) => [...prev, tempColumn]);
 
         addColumnMutation.mutate({
-            tableId: parseInt(tableId, 10),
+            tableId: tableId,
             name: tempColumn.name,
             type: tempColumn.type,
         });

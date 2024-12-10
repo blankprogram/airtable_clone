@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { faker } from '@faker-js/faker';
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
@@ -74,7 +75,7 @@ export const baseRouter = createTRPCRouter({
       });
 
       const cells = createdRows.map((row) => ({
-        value: "",
+        value: faker.person.firstName(),
         columnId: nameColumn.id,
         rowId: row.id,
       }));
@@ -196,6 +197,8 @@ export const baseRouter = createTRPCRouter({
           },
         });
 
+        
+
         const rows = Array.from({ length: 4 }, () => ({ tableId: table.id }));
         await prisma.row.createMany({ data: rows });
 
@@ -205,7 +208,7 @@ export const baseRouter = createTRPCRouter({
         });
 
         const cells = createdRows.map((row) => ({
-          value: "",
+          value: faker.person.firstName(),
           columnId: column.id,
           rowId: row.id,
         }));
@@ -310,6 +313,40 @@ export const baseRouter = createTRPCRouter({
 
     return newRow;
   }),
+  addRow15000: protectedProcedure
+  .input(
+    z.object({
+      tableId: z.number(),
+    })
+  )
+  .mutation(async ({ ctx, input }) => {
+    const { tableId } = input;
+
+    const rows = Array.from({ length: 4 }, () => ({ tableId }));
+      await ctx.db.row.createMany({
+        data: rows,
+      });
+
+      const createdRows = await ctx.db.row.findMany({
+        where: { tableId: tableId },
+        select: { id: true },
+      });
+
+      const cells = createdRows.map((row) => ({
+        value: faker.person.firstName(),
+        columnId: row.id,
+        rowId: row.id,
+      }));
+      await ctx.db.cell.createMany({
+        data: cells,
+      });
+
+      return {
+        
+        firstTableId: tableId,
+      };
+  }),
+
   addColumn: protectedProcedure
   .input(
     z.object({
