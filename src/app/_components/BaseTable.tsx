@@ -186,11 +186,14 @@ function TableHeader({ isLoading }: { isLoading: boolean }) {
 
 
                 );
+
             })}
-            <button className="text-sm font-light">
+
+            <button className="text-sm font-light hover:bg-gray-100 px-2 py-1 rounded">
                 <span>15000 rows</span>
 
             </button>
+
         </div>
     );
 }
@@ -412,7 +415,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                     <p className="mt-4 text-gray-600 text-lg font-medium">Loading View</p>
                 </div>
             ) : (
-                <table className="table-auto border-collapse text-sm">
+                <table className="table-auto border-collapse text-xs">
                     <thead style={{ height: "30px" }}>
                         {table.getHeaderGroups().map((headerGroup) => (
                             <tr key={headerGroup.id} className="border-b border-gray-300">
@@ -442,13 +445,13 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                                             <div
                                                 onMouseDown={header.getResizeHandler()}
                                                 onTouchStart={header.getResizeHandler()}
-                                                className="absolute right-0 top-0 h-full w-1 bg-blue-500 cursor-col-resize opacity-0 hover:opacity-100"
+                                                className="absolute right-0 top-0 h-full w-0.5 bg-blue-500 cursor-col-resize opacity-0 hover:opacity-100"
                                             />
                                         )}
                                     </th>
                                 ))}
                                 <th
-                                    className="bg-gray-100 border border-gray-300 px-10 cursor-pointer text-gray-500 font-medium"
+                                    className="bg-gray-100 border-b border-l border-r border-gray-300 px-10 cursor-pointer text-gray-500 font-medium"
                                     onClick={handleAddColumn}
                                 >
                                     +
@@ -476,7 +479,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
 
                         <tr className="hover:bg-gray-100 bg-white">
                             <td
-                                className="border-l border-b border-gray-300  text-start text-xl flex cursor-pointer  text-gray-500 "
+                                className="border-l border-b border-gray-300  text-start text-lg flex cursor-pointer  text-gray-500 "
                             >
                                 <button className={"ml-3"} onClick={handleAddRow}>+</button>
                             </td>

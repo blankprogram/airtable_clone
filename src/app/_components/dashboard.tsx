@@ -359,7 +359,10 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
             </div>
 
             {isLoading ? (
-                <p>Loading...</p>
+                <div className="grid grid-cols-5 gap-4 pb-4 " >
+                    {[...Array(10)].map((_, index) => <div key={index} className=" p-12 bg-white  rounded-lg  flex relative animate-pulse"></div>)}
+
+                </div>
             ) : (
                 <>
                     {todayBases.length > 0 && <BaseList title="Today" bases={todayBases} />}

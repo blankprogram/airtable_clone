@@ -120,7 +120,7 @@ export default function BaseHeader({
         className=" flex items-center justify-between px-4 py-3"
         style={{ backgroundColor: themeColor }}
       >
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           <button
             aria-label="Go home"
             className="flex h-8 w-8 items-center justify-center"
@@ -178,7 +178,7 @@ export default function BaseHeader({
 
             )}
           </div>
-          <nav className="flex items-center space-x-1 pl-2 text-xs">
+          <nav className="flex items-center space-x-1  text-sm">
             {["Data", "Automations", "Interfaces", "Forms"].map((item) => (
               <button
                 key={item}
@@ -195,10 +195,10 @@ export default function BaseHeader({
             <img
               src={session.user.image}
               alt="User Profile"
-              className="h-8 w-8 rounded-full outline outline-1 outline-white"
+              className="h-7 w-7 rounded-full outline outline-1 outline-white"
             />
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-500 text-white outline-1 outline">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-500 text-white outline-1 outline">
 
             </div>
           )}
@@ -246,7 +246,7 @@ export default function BaseHeader({
 
         {!isLoading &&
           <div className="flex items-center justify-center space-x-4 rounded-tl-lg ml-2 px-2" style={{ backgroundColor: hoverColor }}>
-            <button className="flex items-center  p-2 text-xs ">
+            <button className="flex items-center  p-1 text-xs ">
               <span>Extensions</span>
             </button>
             <button className="flex items-center space-x-1  p-2 text-xs ">
