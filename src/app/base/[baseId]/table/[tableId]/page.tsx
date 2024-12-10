@@ -15,7 +15,7 @@ export default function Base() {
   );
 
   return (
-    <div className="bg-[#f7f7f7] min-h-screen flex flex-col">
+    <div className="bg-[#f7f7f7] min-h-screen flex flex-col relative">
 
       <BaseHeader
         baseId={parseInt(baseId, 10)}

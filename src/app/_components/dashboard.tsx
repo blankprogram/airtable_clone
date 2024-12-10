@@ -24,7 +24,13 @@ type RouterOutput = inferRouterOutputs<AppRouter>;
 
 type Base = RouterOutput["post"]["getBasesForUser"][number];
 
-function Header({ session }: { session: Session }) {
+function Header({
+    session,
+    toggleSidebar,
+}: {
+    session: Session;
+    toggleSidebar: () => void;
+}) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
 
@@ -35,7 +41,7 @@ function Header({ session }: { session: Session }) {
     return (
         <header className="sticky top-0 z-50 bg-white border-b border-gray-300 flex items-center justify-between px-3 py-2">
             <div className="flex items-center gap-4">
-                <button className="hover:text-black text-gray-500" aria-label="Open menu">
+                <button onClick={toggleSidebar} className="hover:text-black text-gray-500" aria-label="Open menu">
                     <HiOutlineMenu className="h-5 w-5" />
                 </button>
                 <Link href="/" className="flex items-center text-lg font-bold hover:text-inherit">
@@ -62,16 +68,23 @@ function Header({ session }: { session: Session }) {
                 </button>
                 <div className="relative">
                     <button
-                        className="p-1"
+                        className="p-0 rounded-full border border-white bg-gray-200 flex items-center justify-center h-7 w-7"
                         aria-label="User Profile"
                         onClick={toggleDropdown}
                     >
-                        <img
-                            src={session.user?.image ?? undefined}
-                            alt="User Profile"
-                            className="h-7 w-7 rounded-full border border-gray-300"
-                        />
+                        {session.user?.image ? (
+                            <img
+                                src={session.user.image}
+                                alt="User Profile"
+                                className="h-7 w-7 rounded-full"
+                            />
+                        ) : (
+                            <div className="h-7 w-7 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs">
+                                {session.user?.name?.[0]?.toUpperCase() ?? ""}
+                            </div>
+                        )}
                     </button>
+
                     {isDropdownOpen && (
                         <div className="absolute right-0 mt-2 w-40 bg-white shadow-lg rounded-lg border border-gray-200">
                             <Link
@@ -88,52 +101,124 @@ function Header({ session }: { session: Session }) {
     );
 }
 
-function Sidebar({ handleCreateBase }: { handleCreateBase: () => Promise<void> }) {
+function Sidebar({
+    handleCreateBase,
+    isSidebarOpen,
+}: {
+    handleCreateBase: () => Promise<void>;
+    isSidebarOpen: boolean;
+}) {
+    if (isSidebarOpen) {
+        return (
+            <aside className="w-80 bg-white border-r border-t border-gray-300 flex flex-col py-4 px-3">
+                <div className="flex flex-col gap-4">
+                    <button className="flex items-center justify-between w-full px-4 py-2 rounded hover:bg-gray-100">
+                        <span className="text-left text-md">Home</span>
+                        <HiOutlineChevronDown className="h-5 w-5" />
+                    </button>
+                    <button className="flex items-center justify-between w-full px-4 py-2 rounded hover:bg-gray-100">
+                        <span className="text-left text-gray-800 text-md">All workspaces</span>
+                        <div className="flex items-center gap-1">
+                            <HiOutlinePlus className="h-5 w-5" />
+                            <HiOutlineChevronDown className="h-5 w-5" />
+                        </div>
+                    </button>
+                </div>
+                <div className="flex-grow"></div>
+                <div className="border-t border-gray-200 pt-2">
+                    <nav className="flex flex-col gap-2">
+                        <div className="flex flex-col">
+                            <a href="#" className="flex items-center gap-2 p-2 rounded hover:bg-gray-100">
+                                <HiOutlineBookOpen className="h-4 w-4" />
+                                <span className="text-sm font-medium text-gray-700">Templates and Apps</span>
+                            </a>
+                            <a href="#" className="flex items-center gap-2 p-2 rounded hover:bg-gray-100">
+                                <HiOutlineShoppingBag className="h-4 w-4 text-gray-600" />
+                                <span className="text-sm font-medium text-gray-700">Marketplace</span>
+                            </a>
+                            <a href="#" className="flex items-center gap-2 p-2 rounded hover:bg-gray-100">
+                                <HiOutlineUpload className="h-4 w-4 text-gray-600" />
+                                <span className="text-sm font-medium text-gray-700">Import</span>
+                            </a>
+                        </div>
+                        <button
+                            onClick={handleCreateBase}
+                            className="flex items-center justify-center gap-2 w-full p-2 rounded bg-[#166ee1] text-white"
+                        >
+                            <HiOutlinePlus className="h-4 w-4" />
+                            <span className="text-sm font-medium">Create</span>
+                        </button>
+                    </nav>
+                </div>
+            </aside>
+        );
+    }
 
     return (
-        <aside className="w-80 bg-white border-r border-t border-gray-300 flex flex-col py-4 px-3">
-            <div className="flex flex-col gap-4">
-                <button className="flex items-center justify-between w-full px-4 py-2 rounded hover:bg-gray-100">
-                    <span className="text-left text-md">Home</span>
-                    <HiOutlineChevronDown className="h-5 w-5" />
-                </button>
-                <button className="flex items-center justify-between w-full px-4 py-2 rounded hover:bg-gray-100">
-                    <span className="text-left text-gray-800 text-md">All workspaces</span>
-                    <div className="flex items-center gap-1">
-                        <HiOutlinePlus className="h-5 w-5" />
-                        <HiOutlineChevronDown className="h-5 w-5" />
-                    </div>
-                </button>
-            </div>
+        <aside className="w-12 bg-white border-r  border-gray-200 flex flex-col pt-4 items-center">
+            <button className="p-2 rounded hover:bg-gray-100" title="Home">
+                <svg
+                    width="20"
+                    height="20"
+
+                >
+                    <use href="/icons/icon_definitions.svg#House" />
+                </svg>
+            </button>
+            <button className="p-2 rounded hover:bg-gray-100" title="People">
+                <svg
+                    width="20"
+                    height="20"
+
+                >
+                    <use href="/icons/icon_definitions.svg#UsersThree" />
+                </svg>
+            </button>
             <div className="flex-grow"></div>
-            <div className="border-t border-gray-200 pt-2">
-                <nav className="flex flex-col gap-2">
-                    <div className="flex flex-col">
-                        <a href="#" className="flex items-center gap-2 p-2 rounded hover:bg-gray-100">
-                            <HiOutlineBookOpen className="h-4 w-4" />
-                            <span className="text-sm font-medium text-gray-700">Templates and Apps</span>
-                        </a>
-                        <a href="#" className="flex items-center gap-2 p-2 rounded hover:bg-gray-100">
-                            <HiOutlineShoppingBag className="h-4 w-4 text-gray-600" />
-                            <span className="text-sm font-medium text-gray-700">Marketplace</span>
-                        </a>
-                        <a href="#" className="flex items-center gap-2 p-2 rounded hover:bg-gray-100">
-                            <HiOutlineUpload className="h-4 w-4 text-gray-600" />
-                            <span className="text-sm font-medium text-gray-700">Import</span>
-                        </a>
-                    </div>
-                    <button
-                        onClick={handleCreateBase}
-                        className="flex items-center justify-center gap-2 w-full p-2 rounded bg-[#166ee1] text-white"
-                    >
-                        <HiOutlinePlus className="h-4 w-4" />
-                        <span className="text-sm font-medium">Create</span>
-                    </button>
-                </nav>
-            </div>
+            <button className="p-2 rounded hover:bg-gray-100" title="Templates and Apps">
+                <svg
+                    width="16"
+                    height="16"
+                    fill="gray"
+                >
+                    <use href="/icons/icon_definitions.svg#BookOpen" />
+                </svg>
+            </button>
+            <button className="p-2 rounded hover:bg-gray-100" title="Marketplace">
+                <svg
+                    width="16"
+                    height="16"
+                    fill="gray"
+                >
+                    <use href="/icons/icon_definitions.svg#ShoppingBagOpen" />
+                </svg>
+            </button>
+            <button className="p-2 rounded hover:bg-gray-100" title="Import">
+                <svg
+                    width="20"
+                    height="20"
+                    fill="gray"
+                >
+                    <use href="/icons/icon_definitions.svg#Globe" />
+                </svg>
+            </button>
+            <button
+                onClick={handleCreateBase}
+                className=" rounded border-2 text-white mt-2"
+                title="Create"
+            >
+                <svg
+                    width="20"
+                    height="20"
+                    fill="gray"
+                >
+                    <use href="/icons/icon_definitions.svg#Plus" />
+                </svg>
+            </button>
         </aside>
     );
 }
+
 
 
 
@@ -382,6 +467,10 @@ function MainContent({ handleCreateBase }: { handleCreateBase: () => Promise<voi
 
 
 export function Dashboard({ session }: { session: Session }) {
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const toggleSidebar = () => {
+        setIsSidebarOpen((prev) => !prev);
+    };
     const utils = api.useContext();
     const router = useRouter();
     const createBaseMutation = api.post.createBaseForUser.useMutation({
@@ -407,7 +496,6 @@ export function Dashboard({ session }: { session: Session }) {
 
         onSuccess: (data) => {
             if (data?.firstTableId) {
-                router.push(`/base/${data.id}/table/${data.firstTableId}`);
             } else {
                 console.error("No tables available for this base");
             }
@@ -438,10 +526,10 @@ export function Dashboard({ session }: { session: Session }) {
     };
 
     return (
-        <div className="min-h-screen bg-[#f9fafb] flex flex-col">
-            <Header session={session} />
+        <div className="min-h-screen bg-[#f9fafb] flex flex-col relative">
+            <Header session={session} toggleSidebar={toggleSidebar} />
             <div className="flex flex-1">
-                <Sidebar handleCreateBase={handleCreateBase} />
+                <Sidebar handleCreateBase={handleCreateBase} isSidebarOpen={isSidebarOpen} />
                 <MainContent handleCreateBase={handleCreateBase} />
             </div>
         </div>
