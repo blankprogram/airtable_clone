@@ -89,6 +89,7 @@ function Header({ session }: { session: Session }) {
 }
 
 function Sidebar({ handleCreateBase }: { handleCreateBase: () => Promise<void> }) {
+
     return (
         <aside className="w-80 bg-white border-r border-t border-gray-300 flex flex-col py-4 px-3">
             <div className="flex flex-col gap-4">

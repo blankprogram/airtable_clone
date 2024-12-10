@@ -115,9 +115,9 @@ export default function BaseHeader({
 
 
   return (
-    <header>
+    <header className="sticky top-0">
       <div
-        className="flex items-center justify-between px-4 py-3"
+        className=" flex items-center justify-between px-4 py-3"
         style={{ backgroundColor: themeColor }}
       >
         <div className="flex items-center space-x-2">

@@ -23,10 +23,11 @@ export default function Base() {
         baseData={baseData}
         isLoading={isLoading}
         refetch={refetch}
+
       />
-      <div className="flex flex-grow ">
-        <BaseTable tableId={parseInt(tableId, 10)} />
-      </div>
+
+      <BaseTable tableId={parseInt(tableId, 10)} />
+
     </div>
 
   );

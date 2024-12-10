@@ -399,7 +399,10 @@ export default function BaseTable({ tableId }: { tableId: number }) {
 
     return (
         <div className="w-full">
-            <TableHeader isLoading={isLoading} />
+            <header className="">
+                <TableHeader isLoading={isLoading} />
+            </header>
+
 
             {isLoading ? (
                 <div className="fixed inset-0 flex flex-col items-center justify-center ">
