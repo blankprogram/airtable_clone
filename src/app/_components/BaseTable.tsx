@@ -376,6 +376,10 @@ export default function BaseTable({ tableId }: { tableId: number }) {
     { rowId: number | string; columnId: number | string; value: string }[]
   >([]);
   
+  const [idMapping, setIdMapping] = useState<{
+    rows: Record<string, number>;
+    columns: Record<string, number>;
+}>({ rows: {}, columns: {} });
 
 
 
@@ -416,9 +420,18 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         },
         onSuccess: (newRow, _, context) => {
             if (context?.tempId) {
+                setIdMapping((prev) => ({
+                    ...prev,
+                    rows: { ...prev.rows, [context.tempId]: newRow.id },
+                }));
                 setLocalRows((prev) =>
                     prev.map((row) => (row.id === context.tempId ? { ...row, ...newRow } : row))
                 );
+        
+                if (editingCell?.rowId === context.tempId) {
+                    setEditingCell((prev) => (prev ? { ...prev, rowId: newRow.id } : null));
+                }
+        
                 const editsForRow = pendingEdits.filter(
                     (edit) => edit.rowId === context.tempId
                 );
@@ -453,11 +466,20 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         },
         onSuccess: (newColumn, _, context) => {
             if (context?.tempAccessorKey) {
+                setIdMapping((prev) => ({
+                    ...prev,
+                    columns: { ...prev.columns, [context.tempAccessorKey]: newColumn.id },
+                }));
                 setLocalColumns((prev) =>
                     prev.map((col) =>
                         col.accessorKey === context.tempAccessorKey ? { ...newColumn } : col
                     )
                 );
+        
+                if (editingCell?.columnId === context.tempAccessorKey) {
+                    setEditingCell((prev) => (prev ? { ...prev, columnId: newColumn.id } : null));
+                }
+        
                 const editsForColumn = pendingEdits.filter(
                     (edit) => edit.columnId === context.tempAccessorKey
                 );
@@ -473,6 +495,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                 );
             }
         },
+        
     });
     
     const editCellMutation = api.post.editCell.useMutation({
@@ -522,26 +545,48 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         editingCell: { rowId: number | string; columnId: number | string; value: string } | null
     ) => {
         if (!editingCell) return;
+    
         const { rowId, columnId, value } = editingCell;
+    
+        const mappedRowId =
+            typeof rowId === "string" && rowId.startsWith("temp") ? idMapping.rows[rowId] ?? rowId : rowId;
+        const mappedColumnId =
+            typeof columnId === "string" && columnId.startsWith("temp") ? columnId : idMapping.columns[columnId] ?? columnId;
+    
+        const isTemporaryColumn = typeof columnId === "string" && columnId.startsWith("temp");
+        const isTemporaryRow = typeof rowId === "string" && rowId.startsWith("temp");
+    
+        if (!mappedRowId || !mappedColumnId) {
+            console.error("Invalid rowId or columnId mapping:", { rowId, columnId });
+            return;
+        }
+    
         setLocalRows((prev) =>
-            prev.map((row) => (row.id === rowId ? { ...row, [columnId]: value } : row))
+            prev.map((row) =>
+                row.id === mappedRowId ? { ...row, [mappedColumnId]: value } : row
+            )
         );
-        const isTemporaryColumn =
-            typeof columnId === "string" && columnId.startsWith("temp");
-        const isTemporaryRow =
-            typeof rowId === "string" && rowId.startsWith("temp");
+    
         if (isTemporaryColumn || isTemporaryRow) {
-            setPendingEdits((prev) => [...prev, { rowId, columnId, value }]);
+
+            setPendingEdits((prev) => [...prev, { rowId: mappedRowId, columnId: mappedColumnId, value }]);
         } else {
-            const columnIdForUpdate =
-                typeof columnId === "string" ? parseInt(columnId, 10) : columnId;
+            const numericColumnId =
+                typeof mappedColumnId === "string" ? parseInt(mappedColumnId, 10) : mappedColumnId;
+    
             editCellMutation.mutate({
-                rowId: rowId as number,
-                columnId: columnIdForUpdate,
+                rowId: mappedRowId as number,
+                columnId: numericColumnId,
                 value,
             });
         }
     };
+    
+    
+    
+    
+    
+    
     
     const columnHelper = createColumnHelper<RowData>();
     
@@ -582,12 +627,32 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                                     )
                                 }
                                 onBlur={() => {
+                                    const mappedRowId =
+                                        typeof editingCell.rowId === "string" && editingCell.rowId.startsWith("temp")
+                                            ? idMapping.rows[editingCell.rowId] ?? editingCell.rowId
+                                            : editingCell.rowId;
+                                    const mappedColumnId =
+                                        typeof editingCell.columnId === "string" && editingCell.columnId.startsWith("temp")
+                                            ? editingCell.columnId
+                                            : idMapping.columns[editingCell.columnId] ?? editingCell.columnId;
+                                
+                                    if (!mappedRowId || !mappedColumnId) {
+                                        console.error("Invalid IDs for onBlur update:", { mappedRowId, mappedColumnId });
+                                        setEditingCell(null);
+                                        return;
+                                    }
+                                
                                     updateCellOptimistically(info, {
-                                        ...editingCell,
-                                        columnId,
+                                        rowId: mappedRowId,
+                                        columnId: mappedColumnId,
+                                        value: editingCell.value,
                                     });
                                     setEditingCell(null);
                                 }}
+                                
+                                
+                                
+                                
                                 onKeyDown={(e) => {
                                     if (e.key === "Escape") {
                                         updateCellOptimistically(info, {
