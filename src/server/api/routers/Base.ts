@@ -282,18 +282,12 @@ export const baseRouter = createTRPCRouter({
       };
     }),
     addRow: protectedProcedure
-  .input(
-    z.object({
-      tableId: z.number(),
-    })
-  )
+  .input(z.object({ tableId: z.number() }))
   .mutation(async ({ ctx, input }) => {
     const { tableId } = input;
 
     const newRow = await ctx.db.row.create({
-      data: {
-        tableId,
-      },
+      data: { tableId },
     });
 
     const columns = await ctx.db.column.findMany({
@@ -311,41 +305,13 @@ export const baseRouter = createTRPCRouter({
       data: cells,
     });
 
-    return newRow;
+    return {
+      id: newRow.id,
+      cells: cells.map((cell) => ({ columnId: cell.columnId, value: cell.value })),
+    };
   }),
-  addRow15000: protectedProcedure
-  .input(
-    z.object({
-      tableId: z.number(),
-    })
-  )
-  .mutation(async ({ ctx, input }) => {
-    const { tableId } = input;
 
-    const rows = Array.from({ length: 4 }, () => ({ tableId }));
-      await ctx.db.row.createMany({
-        data: rows,
-      });
 
-      const createdRows = await ctx.db.row.findMany({
-        where: { tableId: tableId },
-        select: { id: true },
-      });
-
-      const cells = createdRows.map((row) => ({
-        value: faker.person.firstName(),
-        columnId: row.id,
-        rowId: row.id,
-      }));
-      await ctx.db.cell.createMany({
-        data: cells,
-      });
-
-      return {
-        
-        firstTableId: tableId,
-      };
-  }),
 
   addColumn: protectedProcedure
   .input(
@@ -359,11 +325,7 @@ export const baseRouter = createTRPCRouter({
     const { tableId, name, type } = input;
 
     const newColumn = await ctx.db.column.create({
-      data: {
-        tableId,
-        name,
-        type,
-      },
+      data: { tableId, name, type },
     });
 
     const rows = await ctx.db.row.findMany({
@@ -381,8 +343,15 @@ export const baseRouter = createTRPCRouter({
       data: cells,
     });
 
-    return newColumn;
+    return {
+      id: newColumn.id,
+      name,
+      type,
+      accessorKey: String(newColumn.id),
+      rows: cells.map((cell) => ({ rowId: cell.rowId, value: cell.value })),
+    };
   }),
+
 
   
   editCell: protectedProcedure

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     type CellContext,
     createColumnHelper,
@@ -372,42 +372,137 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         tableId: tableId,
     });
 
+    const [pendingEdits, setPendingEdits] = useState<
+    { rowId: number | string; columnId: number | string; value: string }[]
+  >([]);
+  
+
+
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
 
-    const editCellMutation = api.post.editCell.useMutation({
-        onSuccess: async () => await refetch(),
-        onError: async () => await refetch(),
-    });
+    
 
     const [localRows, setLocalRows] = useState<RowData[]>([]);
     const [localColumns, setLocalColumns] = useState<ColumnData[]>([]);
     const [editingCell, setEditingCell] = useState<{
         rowId: number | string;
-        columnId: number;
+        columnId: number | string;
         value: string;
     } | null>(null);
+    
 
+    useEffect(() => {
+        void refetch();
+    }, [refetch]);
+    
+    
+    
     useMemo(() => {
         if (data) {
             setLocalRows(data.rows || []);
             setLocalColumns(data.columns || []);
         }
     }, [data]);
+    
+    const addRowMutation = api.post.addRow.useMutation({
+        onMutate: async ({ tableId }) => {
+            const tempId = `temp-${Date.now()}-${Math.random()}`;
+            const tempRow: RowData = { id: tempId };
+            setLocalRows((prev) => [...prev, tempRow]);
+            return { tempId };
+        },
+        onSuccess: (newRow, _, context) => {
+            if (context?.tempId) {
+                setLocalRows((prev) =>
+                    prev.map((row) => (row.id === context.tempId ? { ...row, ...newRow } : row))
+                );
+                const editsForRow = pendingEdits.filter(
+                    (edit) => edit.rowId === context.tempId
+                );
+                editsForRow.forEach((edit) => {
+                    editCellMutation.mutate({
+                        rowId: newRow.id,
+                        columnId: Number(edit.columnId),
+                        value: edit.value,
+                    });
+                });
+                setPendingEdits((prev) =>
+                    prev.filter((edit) => edit.rowId !== context.tempId)
+                );
+            }
+        },
+    });
+    
+    const addColumnMutation = api.post.addColumn.useMutation({
+        onMutate: async ({ name, type = "TEXT" }) => {
+            const tempAccessorKey = `temp-${Date.now()}-${Math.random()}`;
+            const tempColumn: ColumnData = {
+                id: null,
+                name,
+                accessorKey: tempAccessorKey,
+                type,
+            };
+            setLocalColumns((prev) => [...prev, tempColumn]);
+            setLocalRows((prev) =>
+                prev.map((row) => ({ ...row, [tempAccessorKey]: "" }))
+            );
+            return { tempAccessorKey };
+        },
+        onSuccess: (newColumn, _, context) => {
+            if (context?.tempAccessorKey) {
+                setLocalColumns((prev) =>
+                    prev.map((col) =>
+                        col.accessorKey === context.tempAccessorKey ? { ...newColumn } : col
+                    )
+                );
+                const editsForColumn = pendingEdits.filter(
+                    (edit) => edit.columnId === context.tempAccessorKey
+                );
+                editsForColumn.forEach((edit) => {
+                    editCellMutation.mutate({
+                        rowId: Number(edit.rowId),
+                        columnId: newColumn.id,
+                        value: edit.value,
+                    });
+                });
+                setPendingEdits((prev) =>
+                    prev.filter((edit) => edit.columnId !== context.tempAccessorKey)
+                );
+            }
+        },
+    });
+    
+    const editCellMutation = api.post.editCell.useMutation({
+        onMutate: async ({ rowId, columnId, value }) => {
+            const columnIdForUpdate =
+                typeof columnId === "string" ? parseInt(columnId, 10) : columnId;
+            setLocalRows((prev) =>
+                prev.map((row) =>
+                    row.id === rowId ? { ...row, [columnId]: value } : row
+                )
+            );
+            return { rowId, columnId: columnIdForUpdate, previousValue: value };
+        },
+        onError: (_, { rowId, columnId }, context) => {
+            if (context?.rowId && context?.columnId) {
+                setLocalRows((prev) =>
+                    prev.map((row) =>
+                        row.id === context.rowId
+                            ? { ...row, [context.columnId]: context.previousValue }
+                            : row
+                    )
+                );
+            }
+        },
+    });
+    
     const handleAddRow = () => {
-        const tempRow: RowData = {
-            id: `temp-${Date.now()}`,
-        };
-
-        setLocalRows((prev) => [...prev, tempRow]);
-
-        addRowMutation.mutate({
-            tableId: tableId,
-        });
+        addRowMutation.mutate({ tableId: tableId });
     };
-
+    
     const handleAddColumn = () => {
         const tempColumn: ColumnData = {
             id: null,
@@ -415,55 +510,41 @@ export default function BaseTable({ tableId }: { tableId: number }) {
             accessorKey: `column_${localColumns.length + 1}`,
             type: "TEXT",
         };
-        setLocalColumns((prev) => [...prev, tempColumn]);
-
         addColumnMutation.mutate({
             tableId: tableId,
             name: tempColumn.name,
             type: tempColumn.type,
         });
     };
-    const addRowMutation = api.post.addRow.useMutation({
-        onSuccess: async (newRow) => {
-            setLocalRows((prev) =>
-                prev.map((row) => (row.id === newRow.id ? newRow : row))
-            );
-            await refetch();
-        },
-        onError: () => {
-            setLocalRows((prev) => prev.slice(0, -1));
-        },
-    });
-
-    const addColumnMutation = api.post.addColumn.useMutation({
-        onSuccess: async () => await refetch(),
-        onError: () => {
-            setLocalColumns((prev) => prev.slice(0, -1));
-        },
-    });
-
+    
     const updateCellOptimistically = (
         info: CellContext<RowData, unknown>,
-        editingCell: { rowId: number | string; columnId: number; value: string } | null
+        editingCell: { rowId: number | string; columnId: number | string; value: string } | null
     ) => {
         if (!editingCell) return;
-
+        const { rowId, columnId, value } = editingCell;
         setLocalRows((prev) =>
-            prev.map((row) =>
-                row.id === editingCell.rowId
-                    ? { ...row, [info.column.id]: editingCell.value }
-                    : row
-            )
+            prev.map((row) => (row.id === rowId ? { ...row, [columnId]: value } : row))
         );
-
-        editCellMutation.mutate({
-            rowId: editingCell.rowId as number,
-            columnId: editingCell.columnId,
-            value: editingCell.value,
-        });
+        const isTemporaryColumn =
+            typeof columnId === "string" && columnId.startsWith("temp");
+        const isTemporaryRow =
+            typeof rowId === "string" && rowId.startsWith("temp");
+        if (isTemporaryColumn || isTemporaryRow) {
+            setPendingEdits((prev) => [...prev, { rowId, columnId, value }]);
+        } else {
+            const columnIdForUpdate =
+                typeof columnId === "string" ? parseInt(columnId, 10) : columnId;
+            editCellMutation.mutate({
+                rowId: rowId as number,
+                columnId: columnIdForUpdate,
+                value,
+            });
+        }
     };
+    
     const columnHelper = createColumnHelper<RowData>();
-
+    
     const rowNumberColumn = columnHelper.display({
         id: "rowNumber",
         header: () => (
@@ -471,31 +552,21 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                 <input type="checkbox" />
             </div>
         ),
-        cell: (info) => (
-            <div className="text-start ml-4">{info.row.index + 1}</div>
-        ),
+        cell: (info) => <div className="text-start ml-4">{info.row.index + 1}</div>,
         size: 40,
         enableResizing: false,
     });
-
-
-
-
-
-
+    
     const columns = useMemo(() => {
         if (!localColumns.length) return [];
-        const dynamicColumns = localColumns.map((col, colIndex) =>
+        const dynamicColumns = localColumns.map((col) =>
             columnHelper.accessor(col.accessorKey as keyof RowData, {
-                id: col.id?.toString() ?? "temp",
-
-
+                id: col.id?.toString() ?? col.accessorKey,
                 header: col.name,
                 cell: (info) => {
-                    const cellValue = info.getValue() as string;
+                    const cellValue = info.row.original[col.accessorKey as keyof RowData] as string;
                     const rowId = info.row.original.id;
-                    const columnId = parseInt(info.column.id, 10);
-
+                    const columnId = col.id?.toString() ?? col.accessorKey;
                     if (
                         editingCell &&
                         editingCell.rowId === rowId &&
@@ -511,41 +582,58 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                                     )
                                 }
                                 onBlur={() => {
-                                    updateCellOptimistically(info, editingCell);
+                                    updateCellOptimistically(info, {
+                                        ...editingCell,
+                                        columnId,
+                                    });
                                     setEditingCell(null);
                                 }}
                                 onKeyDown={(e) => {
                                     if (e.key === "Escape") {
-                                        updateCellOptimistically(info, editingCell);
+                                        updateCellOptimistically(info, {
+                                            ...editingCell,
+                                            columnId,
+                                        });
                                         setEditingCell(null);
-                                    } else if (e.key === "Tab") {
+                                    }
+    
+                                    if (e.key === "Tab") {
                                         e.preventDefault();
-                                        updateCellOptimistically(info, editingCell);
-
-                                        const nextColIndex = colIndex + 1;
-                                        if (nextColIndex < localColumns.length) {
-                                            const nextColumn = localColumns[nextColIndex];
+                                        updateCellOptimistically(info, {
+                                            ...editingCell,
+                                            columnId,
+                                        });
+    
+                                        const currentColumnIndex = localColumns.findIndex(
+                                            (col) => col.accessorKey === columnId
+                                        );
+                                        const nextColumnIndex = currentColumnIndex + 1;
+    
+                                        if (nextColumnIndex < localColumns.length) {
+                                            const nextColumn = localColumns[nextColumnIndex];
                                             if (nextColumn) {
                                                 setEditingCell({
                                                     rowId,
-                                                    columnId: nextColumn.id!,
-                                                    value: (info.row.original[nextColumn.accessorKey as keyof RowData] || "") as string,
+                                                    columnId: nextColumn.accessorKey,
+                                                    value: String(info.row.original[nextColumn.accessorKey as keyof RowData] || ""),
                                                 });
                                             }
+                                        } else {
+                                            setEditingCell(null);
                                         }
+                                        
                                     }
                                 }}
                                 autoFocus
-                                className="w-full h-full focus:outline-none px-2 py-1  border-2 border-blue-500"
+                                className="w-full h-full focus:outline-none px-2 py-1 border-2 border-blue-500"
                             />
                         );
                     }
-
                     return (
                         <div
                             onClick={() =>
                                 setEditingCell({
-                                    rowId: rowId as number,
+                                    rowId,
                                     columnId,
                                     value: cellValue || "",
                                 })
@@ -559,8 +647,8 @@ export default function BaseTable({ tableId }: { tableId: number }) {
             })
         );
         return [rowNumberColumn, ...dynamicColumns];
-    }, [localColumns, editingCell]);
-
+    }, [localColumns, localRows, editingCell]);
+    
     const table = useReactTable({
         data: localRows,
         columns,
