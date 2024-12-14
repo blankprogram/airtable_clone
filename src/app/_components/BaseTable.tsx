@@ -202,7 +202,7 @@ export function TableHeader({
 
             <button
                 className="text-sm font-light hover:bg-gray-100 px-2 py-1 rounded"
-                onClick={() => handleBulkAddRows(100)}
+                onClick={() => handleBulkAddRows(15000)}
             >
                 <span>Add 15,000 Rows</span>
             </button>
@@ -403,7 +403,15 @@ export default function BaseTable({
             setLocalColumns(data.columns ?? []);
         }
     }, [data, setLocalRows, setLocalColumns]);
-    
+
+    const [dropdownVisible, setDropdownVisible] = useState(false);
+    const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+    const toggleDropdown = (event: React.MouseEvent<HTMLElement>) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
+        setDropdownVisible((prev) => !prev);
+    };
 
     const addRowMutation = api.post.addRow.useMutation({
         onMutate: async ({ tableId }) => {
@@ -511,47 +519,48 @@ export default function BaseTable({
         addRowMutation.mutate({ tableId: tableId });
     };
 
-    const handleAddColumn = () => {
+    const handleAddColumn = (type: "TEXT" | "NUMBER") => {
         const tempColumn: ColumnData = {
             id: null,
             name: `Column ${localColumns.length + 1}`,
             accessorKey: `column_${localColumns.length + 1}`,
-            type: "TEXT",
+            type: type,
         };
         addColumnMutation.mutate({
             tableId: tableId,
             name: tempColumn.name,
             type: tempColumn.type,
         });
+        setDropdownVisible(false);
     };
 
     const updateCellOptimistically = (
         info: CellContext<RowData, unknown>,
         editingCell: { rowId: number | string; columnId: number | string; value: string } | null
-      ) => {
+    ) => {
         if (!editingCell) return;
-      
+
         const { rowId, columnId, value } = editingCell;
-      
+
         setLocalRows((prev) =>
-          prev.map((row) => (row.id === rowId ? { ...row, [columnId]: value } : row))
+            prev.map((row) => (row.id === rowId ? { ...row, [columnId]: value } : row))
         );
-      
+
         const isTemporaryColumn =
-          typeof columnId === "string" && columnId.startsWith("temp");
+            typeof columnId === "string" && columnId.startsWith("temp");
         const isTemporaryRow = typeof rowId === "string" && rowId.startsWith("temp");
-      
+
         if (isTemporaryRow || isTemporaryColumn) {
-          setPendingEdits((prev) => [...prev, { rowId, columnId, value }]);
+            setPendingEdits((prev) => [...prev, { rowId, columnId, value }]);
         } else {
-          editCellMutation.mutate({
-            rowId: rowId as number,
-            columnId: typeof columnId === "string" ? parseInt(columnId, 10) : columnId,
-            value,
-          });
+            editCellMutation.mutate({
+                rowId: rowId as number,
+                columnId: typeof columnId === "string" ? parseInt(columnId, 10) : columnId,
+                value,
+            });
         }
-      };
-      
+    };
+
 
     const columnHelper = createColumnHelper<RowData>();
 
@@ -678,15 +687,15 @@ export default function BaseTable({
         getScrollElement: () => parentRef.current,
         estimateSize: () => 34,
         overscan: 10,
-      });
+    });
 
-      const virtualRows = rowVirtualizer.getVirtualItems();
-      const paddingTop = virtualRows[0]?.start ?? 0;
-      const paddingBottom =
+    const virtualRows = rowVirtualizer.getVirtualItems();
+    const paddingTop = virtualRows[0]?.start ?? 0;
+    const paddingBottom =
         virtualRows.length > 0
-          ? rowVirtualizer.getTotalSize() - (virtualRows.at(-1)?.end ?? 0)
-          : 0;
-      
+            ? rowVirtualizer.getTotalSize() - (virtualRows.at(-1)?.end ?? 0)
+            : 0;
+
 
     return (
         <div>
@@ -698,14 +707,14 @@ export default function BaseTable({
                     <p className="mt-4 text-gray-600 text-lg font-medium">Loading View</p>
                 </div>
             ) : (
-                <div ref={parentRef} className="relative"style={{
+                <div ref={parentRef} className="relative" style={{
 
                     height: `1135px`,
                     overflow: "auto",
-         
-                  }}>
 
-                     <div
+                }}>
+
+                    <div
                         className="absolute  bg-[#fcfcfc] border-gray-300 border-r min-h-screen"
                         style={{
                             width: `${(table.getHeaderGroups()?.[0]?.headers?.[0]?.getSize?.() ?? 0) +
@@ -713,112 +722,136 @@ export default function BaseTable({
                                 }px`,
                             height: "100%",
                         }}
-                    ></div> 
-                        <div
-                            className="absolute  bg-[#fbfbfb] border-b border-gray-300 min-h-30 w-full"
-                            style={{
+                    ></div>
+                    <div
+                        className="absolute  bg-[#fbfbfb] border-b border-gray-300 min-h-30 w-full"
+                        style={{
 
-                                height: "30px",
-                            }}
-                        ></div>
+                            height: "30px",
+                        }}
+                    ></div>
 
-                        <table className="table-auto border-collapse text-xs relative">
-                            <thead style={{ height: "30px" }}>
-                                {table.getHeaderGroups().map((headerGroup) => (
-                                    <tr key={headerGroup.id} className="border-b border-gray-300">
-                                        {headerGroup.headers.map((header, index) => (
-                                            <th
-                                                key={header.id}
-                                                className={`relative px-2 bg-gray-100 font-normal text-black ${index === 0 ? "text-center" : "text-left border-r border-gray-300"
-                                                    }`}
-                                                style={{ width: `${header.getSize()}px` }}
-                                            >
-                                                <div
-                                                    className={`${index === 0
-                                                        ? ""
-                                                        : "flex items-center justify-between"
-                                                        }`}
-                                                >
-
-                                                    {header.isPlaceholder
-                                                        ? null
-                                                        : flexRender(header.column.columnDef.header, header.getContext())}
-
-                                                    {index > 0 && (
-                                                        <FiChevronDown className="text-gray-500 " />
-                                                    )}
-                                                </div>
-                                                {header.column.getCanResize() && (
-                                                    <div
-                                                        onMouseDown={header.getResizeHandler()}
-                                                        onTouchStart={header.getResizeHandler()}
-                                                        className="absolute right-0 top-0 h-full w-0.5 bg-blue-500 cursor-col-resize opacity-0 hover:opacity-100"
-                                                    />
-                                                )}
-                                            </th>
-                                        ))}
+                    <table className="table-auto border-collapse text-xs relative">
+                        <thead style={{ height: "30px" }}>
+                            {table.getHeaderGroups().map((headerGroup) => (
+                                <tr key={headerGroup.id} className="border-b border-gray-300">
+                                    {headerGroup.headers.map((header, index) => (
                                         <th
-                                            className="bg-gray-100 border-b border-l border-r border-gray-300 px-10 cursor-pointer text-gray-500 font-medium"
-                                            onClick={handleAddColumn}
+                                            key={header.id}
+                                            className={`relative px-2 bg-gray-100 font-normal text-black ${index === 0 ? "text-center" : "text-left border-r border-gray-300"
+                                                }`}
+                                            style={{ width: `${header.getSize()}px` }}
                                         >
-                                            +
+                                            <div
+                                                className={`${index === 0
+                                                    ? ""
+                                                    : "flex items-center justify-between"
+                                                    }`}
+                                            >
+
+                                                {header.isPlaceholder
+                                                    ? null
+                                                    : flexRender(header.column.columnDef.header, header.getContext())}
+
+                                                {index > 0 && (
+                                                    <FiChevronDown className="text-gray-500 " />
+                                                )}
+                                            </div>
+                                            {header.column.getCanResize() && (
+                                                <div
+                                                    onMouseDown={header.getResizeHandler()}
+                                                    onTouchStart={header.getResizeHandler()}
+                                                    className="absolute right-0 top-0 h-full w-0.5 bg-blue-500 cursor-col-resize opacity-0 hover:opacity-100"
+                                                />
+                                            )}
                                         </th>
-                                    </tr>
-                                ))}
-                            </thead>
-                            <tbody>
-                                {paddingTop > 0 && (
-                                    <tr>
-                                        <td style={{ height: `${paddingTop}px` }} colSpan={localColumns.length}></td>
-                                    </tr>
-                                )}
-
-                                {virtualRows.map((virtualRow) => {
-                                    const row = table.getRowModel().rows[virtualRow.index];
-                                    if (!row) return null;
-                                    console.log('Number of virtualized rows:', virtualRows.length);
-
-                                    return (
-                                        <tr key={row.id} className="hover:bg-gray-100 bg-white">
-                                            {row.getVisibleCells().map((cell, index) => (
-                                                <td
-                                                    key={cell.id}
-                                                    className={`p-0 text-xs border-b border-gray-300 border-r`}
-                                                    style={{ height: "30px" }}
-                                                >
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    );
-                                })}
-
-                                {paddingBottom > 0 && (
-                                    <tr>
-                                        <td style={{ height: `${paddingBottom}px` }} colSpan={localColumns.length}></td>
-                                    </tr>
-                                )}
-
-                                <tr
-                                    className="hover:bg-gray-100 bg-white cursor-pointer"
-                                    onClick={handleAddRow}
-                                >
-                                    <td className="border-b border-gray-300 border-r text-start text-lg flex text-gray-500">
-                                        <button className="ml-3" >
-                                            +
-                                        </button>
-                                    </td>
-                                    {Array.from({ length: localColumns.length }).map((_, index) => (
-                                        <td
-                                            key={index}
-                                            className={`border-b border-gray-300 ${index === 0 || index === localColumns.length - 1 ? "border-r" : ""}`}
-                                        ></td>
                                     ))}
-                                </tr>
-                            </tbody>
+                                    <th
+                                        className="bg-gray-100 border-b border-l border-r border-gray-300 px-10 cursor-pointer text-gray-500 font-medium text-center"
+                                        onClick={toggleDropdown}
+                                    >
+                                        +
+                                    </th>
 
-                        </table>
-                    </div>
+                                </tr>
+                            ))}
+                        </thead>
+                        <tbody>
+                            {paddingTop > 0 && (
+                                <tr>
+                                    <td style={{ height: `${paddingTop}px` }} colSpan={localColumns.length}></td>
+                                </tr>
+                            )}
+
+                            {virtualRows.map((virtualRow) => {
+                                const row = table.getRowModel().rows[virtualRow.index];
+                                if (!row) return null;
+                                console.log('Number of virtualized rows:', virtualRows.length);
+
+                                return (
+                                    <tr key={row.id} className="hover:bg-gray-100 bg-white">
+                                        {row.getVisibleCells().map((cell, index) => (
+                                            <td
+                                                key={cell.id}
+                                                className={`p-0 text-xs border-b border-gray-300 border-r`}
+                                                style={{ height: "30px" }}
+                                            >
+                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                );
+                            })}
+
+                            {paddingBottom > 0 && (
+                                <tr>
+                                    <td style={{ height: `${paddingBottom}px` }} colSpan={localColumns.length}></td>
+                                </tr>
+                            )}
+
+                            <tr
+                                className="hover:bg-gray-100 bg-white cursor-pointer"
+                                onClick={handleAddRow}
+                            >
+                                <td className="border-b border-gray-300 border-r text-start text-lg flex text-gray-500">
+                                    <button className="ml-3" >
+                                        +
+                                    </button>
+                                </td>
+                                {Array.from({ length: localColumns.length }).map((_, index) => (
+                                    <td
+                                        key={index}
+                                        className={`border-b border-gray-300 ${index === 0 || index === localColumns.length - 1 ? "border-r" : ""}`}
+                                    ></td>
+                                ))}
+                            </tr>
+                        </tbody>
+
+                    </table>
+                </div>
+            )}
+            {dropdownVisible && (
+                <div
+                    style={{
+                        position: "absolute",
+                        top: dropdownPosition.top,
+                        left: dropdownPosition.left,
+                    }}
+                    className="bg-white border shadow-lg rounded p-2 z-10"
+                >
+                    <button
+                        onClick={() => handleAddColumn("TEXT")}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                        Text
+                    </button>
+                    <button
+                        onClick={() => handleAddColumn("NUMBER")}
+                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                    >
+                        Number
+                    </button>
+                </div>
             )}
         </div>
 
