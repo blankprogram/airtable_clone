@@ -18,7 +18,7 @@ type ColumnData = Omit<RouterOutputs["post"]["getTableData"]["columns"][number],
     id: number | null;
 };
 
-function TableHeader({ isLoading, toggleSidebar }: { isLoading: boolean; toggleSidebar: () => void }) {
+export function TableHeader({ isLoading, toggleSidebar }: { isLoading: boolean; toggleSidebar: () => void }) {
     const buttons = [
         { label: "Views", iconId: "List", style: "text-black" },
         { divider: true },
@@ -200,172 +200,172 @@ function TableHeader({ isLoading, toggleSidebar }: { isLoading: boolean; toggleS
     );
 }
 
-function Sidebar({ isOpen }: { isOpen: boolean }) {
-    if (!isOpen) {
-        return null;
-    }
+export function Sidebar() {
+  return (
+    <div className="bg-white border-r w-72 flex flex-col h-full">
+      <div className="py-4 px-6">
+        {/* Search Section */}
+        <div className="flex items-center justify-center mb-2">
+          <div className="flex items-center relative">
+            <svg
+              width="16"
+              height="16"
+              className="absolute left-2 text-gray-500"
+              fill="currentColor"
+              aria-hidden="true"
+              style={{ shapeRendering: "geometricPrecision" }}
+            >
+              <use href={`/icons/icon_definitions.svg#MagnifyingGlass`} />
+            </svg>
 
-    return (
-        <div className="bg-white border-r  w-72 flex flex-col">
-            <div className="py-4 px-6">
-                <div className="flex items-center justify-center mb-2">
-                    <div className="flex items-center relative">
-                        <svg
-                            width="16"
-                            height="16"
-                            className="absolute left-2 text-gray-500"
-                            fill="currentColor"
-                            aria-hidden="true"
-                            style={{ shapeRendering: "geometricPrecision" }}
-                        >
-                            <use href={`/icons/icon_definitions.svg#MagnifyingGlass`} />
-                        </svg>
-
-                        <input
-                            type="text"
-                            placeholder="Find a view"
-                            className="bg-transparent pl-8 pr-8 focus:outline-none flex-grow text-sm"
-                        />
-                        <svg
-                            width="16"
-                            height="16"
-                            className="absolute right-2 text-gray-500"
-                            fill="currentColor"
-                            aria-hidden="true"
-                            style={{ shapeRendering: "geometricPrecision" }}
-                        >
-                            <use href={`/icons/icon_definitions.svg#Cog`} />
-                        </svg>
-                    </div>
-                </div>
-                <div className="border-b border-gray-300 mb-2"></div>
-
-                <div>
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm">Grid View</p>
-                        <button className="text-gray-500 text-sm">+</button>
-                    </div>
-                </div>
-            </div>
-            <div className="mt-auto px-6 pt-4">
-                <div className="border-b border-gray-300 mb-4"></div>
-                <div className="flex items-center justify-between ">
-                    <p className="text-sm font-semibold">Create</p>
-                    <button className="text-gray-500">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            className="w-4 h-4"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z"
-                            />
-                        </svg>
-                    </button>
-                </div>
-                <div className="space-y-3 py-6">
-                    {[
-                        { name: "Grid", icon: "GridFeature", color: "text-blue-500" },
-                        { name: "Calendar", icon: "CalendarFeature", color: "text-[#dc703e]" },
-                        { name: "Gallery", icon: "GalleryFeature", color: "text-purple-500" },
-                        { name: "Kanban", icon: "KanbanFeature", color: "text-green-500" },
-                        { name: "Timeline", icon: "TimelineFeature", color: "text-red-500" },
-                        { name: "List", icon: "ListFeature", color: "text-blue-500" },
-                        { name: "Gantt", icon: "Gantt", color: "text-[#63aaa6]" },
-                        { name: "New Section", icon: "", color: "text-pink-500" },
-                    ].map((view, index) => (
-                        <div key={view.name}>
-                            {view.icon ? (
-                                <div className="flex items-center justify-between ">
-                                    <div className="flex items-center gap-3">
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            fill="currentColor"
-                                            aria-hidden="true"
-                                            className={view.color}
-                                        >
-                                            <use href={`/icons/icon_definitions.svg#${view.icon}`} />
-                                        </svg>
-                                        <p className="text-sm font-medium">{view.name}</p>
-                                    </div>
-                                    <button className="text-gray-500 text-sm">
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            fill="currentColor"
-                                            aria-hidden="true"
-                                            className="text-gray-500"
-                                        >
-                                            <use href={`/icons/icon_definitions.svg#Plus`} />
-                                        </svg>
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-
-                                        <p className="text-sm font-medium">{view.name}</p>
-                                    </div>
-                                    <button className="text-gray-500 text-sm">
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            fill="currentColor"
-                                            aria-hidden="true"
-                                            className="text-gray-500"
-                                        >
-                                            <use href={`/icons/icon_definitions.svg#Plus`} />
-                                        </svg>
-                                    </button>
-                                </div>
-                            )}
-
-                            {view.name === "New Section" && (
-                                <>
-                                    <div className="border-b border-gray-300 my-4"></div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <svg
-                                                width="16"
-                                                height="16"
-                                                fill="currentColor"
-                                                aria-hidden="true"
-                                                className="text-pink-500"
-                                            >
-                                                <use href={`/icons/icon_definitions.svg#Form`} />
-                                            </svg>
-                                            <p className="text-sm font-medium">Form</p>
-                                        </div>
-                                        <button className="text-gray-500 text-sm">
-                                            <svg
-                                                width="16"
-                                                height="16"
-                                                fill="currentColor"
-                                                aria-hidden="true"
-                                                className="text-gray-500"
-                                            >
-                                                <use href={`/icons/icon_definitions.svg#Plus`} />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    ))}
-                </div>
-
-
-            </div>
-
+            <input
+              type="text"
+              placeholder="Find a view"
+              className="bg-transparent pl-8 pr-8 focus:outline-none flex-grow text-sm"
+            />
+            <svg
+              width="16"
+              height="16"
+              className="absolute right-2 text-gray-500"
+              fill="currentColor"
+              aria-hidden="true"
+              style={{ shapeRendering: "geometricPrecision" }}
+            >
+              <use href={`/icons/icon_definitions.svg#Cog`} />
+            </svg>
+          </div>
         </div>
-    );
+        <div className="border-b border-gray-300 mb-2"></div>
+
+        {/* Views Section */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm">Grid View</p>
+            <button className="text-gray-500 text-sm">+</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Spacer to push "Create" to the bottom */}
+      <div className="flex-grow"></div>
+
+      {/* Create Section */}
+      <div className="px-6 pt-4">
+        <div className="border-b border-gray-300 mb-4"></div>
+        <div className="flex items-center justify-between ">
+          <p className="text-sm font-semibold">Create</p>
+          <button className="text-gray-500">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              className="w-4 h-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z"
+              />
+            </svg>
+          </button>
+        </div>
+        <div className="space-y-3 py-6">
+          {[
+            { name: "Grid", icon: "GridFeature", color: "text-blue-500" },
+            { name: "Calendar", icon: "CalendarFeature", color: "text-[#dc703e]" },
+            { name: "Gallery", icon: "GalleryFeature", color: "text-purple-500" },
+            { name: "Kanban", icon: "KanbanFeature", color: "text-green-500" },
+            { name: "Timeline", icon: "TimelineFeature", color: "text-red-500" },
+            { name: "List", icon: "ListFeature", color: "text-blue-500" },
+            { name: "Gantt", icon: "Gantt", color: "text-[#63aaa6]" },
+            { name: "New Section", icon: "", color: "text-pink-500" },
+          ].map((view, index) => (
+            <div key={view.name}>
+              {view.icon ? (
+                <div className="flex items-center justify-between ">
+                  <div className="flex items-center gap-3">
+                    <svg
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      aria-hidden="true"
+                      className={view.color}
+                    >
+                      <use href={`/icons/icon_definitions.svg#${view.icon}`} />
+                    </svg>
+                    <p className="text-sm font-medium">{view.name}</p>
+                  </div>
+                  <button className="text-gray-500 text-sm">
+                    <svg
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      aria-hidden="true"
+                      className="text-gray-500"
+                    >
+                      <use href={`/icons/icon_definitions.svg#Plus`} />
+                    </svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <p className="text-sm font-medium">{view.name}</p>
+                  </div>
+                  <button className="text-gray-500 text-sm">
+                    <svg
+                      width="16"
+                      height="16"
+                      fill="currentColor"
+                      aria-hidden="true"
+                      className="text-gray-500"
+                    >
+                      <use href={`/icons/icon_definitions.svg#Plus`} />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {view.name === "New Section" && (
+                <>
+                  <div className="border-b border-gray-300 my-4"></div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <svg
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        aria-hidden="true"
+                        className="text-pink-500"
+                      >
+                        <use href={`/icons/icon_definitions.svg#Form`} />
+                      </svg>
+                      <p className="text-sm font-medium">Form</p>
+                    </div>
+                    <button className="text-gray-500 text-sm">
+                      <svg
+                        width="16"
+                        height="16"
+                        fill="currentColor"
+                        aria-hidden="true"
+                        className="text-gray-500"
+                      >
+                        <use href={`/icons/icon_definitions.svg#Plus`} />
+                      </svg>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
+
 
 export default function BaseTable({ tableId }: { tableId: number }) {
     const { data, isLoading, refetch } = api.post.getTableData.useQuery({
@@ -373,21 +373,18 @@ export default function BaseTable({ tableId }: { tableId: number }) {
     });
 
     const [pendingEdits, setPendingEdits] = useState<
-    { rowId: number | string; columnId: number | string; value: string }[]
-  >([]);
-  
-  const [idMapping, setIdMapping] = useState<{
-    rows: Record<string, number>;
-    columns: Record<string, number>;
-}>({ rows: {}, columns: {} });
+        { rowId: number | string; columnId: number | string; value: string }[]
+    >([]);
+
+    const [idMapping, setIdMapping] = useState<{
+        rows: Record<string, number>;
+        columns: Record<string, number>;
+    }>({ rows: {}, columns: {} });
 
 
 
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-    const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
 
-    
 
     const [localRows, setLocalRows] = useState<RowData[]>([]);
     const [localColumns, setLocalColumns] = useState<ColumnData[]>([]);
@@ -396,21 +393,21 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         columnId: number | string;
         value: string;
     } | null>(null);
-    
+
 
     useEffect(() => {
         void refetch();
     }, [refetch]);
-    
-    
-    
+
+
+
     useMemo(() => {
         if (data) {
             setLocalRows(data.rows || []);
             setLocalColumns(data.columns || []);
         }
     }, [data]);
-    
+
     const addRowMutation = api.post.addRow.useMutation({
         onMutate: async ({ tableId }) => {
             const tempId = `temp-${Date.now()}-${Math.random()}`;
@@ -427,11 +424,11 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                 setLocalRows((prev) =>
                     prev.map((row) => (row.id === context.tempId ? { ...row, ...newRow } : row))
                 );
-        
+
                 if (editingCell?.rowId === context.tempId) {
                     setEditingCell((prev) => (prev ? { ...prev, rowId: newRow.id } : null));
                 }
-        
+
                 const editsForRow = pendingEdits.filter(
                     (edit) => edit.rowId === context.tempId
                 );
@@ -448,7 +445,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
             }
         },
     });
-    
+
     const addColumnMutation = api.post.addColumn.useMutation({
         onMutate: async ({ name, type = "TEXT" }) => {
             const tempAccessorKey = `temp-${Date.now()}-${Math.random()}`;
@@ -475,11 +472,11 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                         col.accessorKey === context.tempAccessorKey ? { ...newColumn } : col
                     )
                 );
-        
+
                 if (editingCell?.columnId === context.tempAccessorKey) {
                     setEditingCell((prev) => (prev ? { ...prev, columnId: newColumn.id } : null));
                 }
-        
+
                 const editsForColumn = pendingEdits.filter(
                     (edit) => edit.columnId === context.tempAccessorKey
                 );
@@ -495,9 +492,9 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                 );
             }
         },
-        
+
     });
-    
+
     const editCellMutation = api.post.editCell.useMutation({
         onMutate: async ({ rowId, columnId, value }) => {
             const columnIdForUpdate =
@@ -521,11 +518,11 @@ export default function BaseTable({ tableId }: { tableId: number }) {
             }
         },
     });
-    
+
     const handleAddRow = () => {
         addRowMutation.mutate({ tableId: tableId });
     };
-    
+
     const handleAddColumn = () => {
         const tempColumn: ColumnData = {
             id: null,
@@ -539,41 +536,41 @@ export default function BaseTable({ tableId }: { tableId: number }) {
             type: tempColumn.type,
         });
     };
-    
+
     const updateCellOptimistically = (
         info: CellContext<RowData, unknown>,
         editingCell: { rowId: number | string; columnId: number | string; value: string } | null
     ) => {
         if (!editingCell) return;
-    
+
         const { rowId, columnId, value } = editingCell;
-    
+
         const mappedRowId =
             typeof rowId === "string" && rowId.startsWith("temp") ? idMapping.rows[rowId] ?? rowId : rowId;
         const mappedColumnId =
             typeof columnId === "string" && columnId.startsWith("temp") ? columnId : idMapping.columns[columnId] ?? columnId;
-    
+
         const isTemporaryColumn = typeof columnId === "string" && columnId.startsWith("temp");
         const isTemporaryRow = typeof rowId === "string" && rowId.startsWith("temp");
-    
+
         if (!mappedRowId || !mappedColumnId) {
             console.error("Invalid rowId or columnId mapping:", { rowId, columnId });
             return;
         }
-    
+
         setLocalRows((prev) =>
             prev.map((row) =>
                 row.id === mappedRowId ? { ...row, [mappedColumnId]: value } : row
             )
         );
-    
+
         if (isTemporaryColumn || isTemporaryRow) {
 
             setPendingEdits((prev) => [...prev, { rowId: mappedRowId, columnId: mappedColumnId, value }]);
         } else {
             const numericColumnId =
                 typeof mappedColumnId === "string" ? parseInt(mappedColumnId, 10) : mappedColumnId;
-    
+
             editCellMutation.mutate({
                 rowId: mappedRowId as number,
                 columnId: numericColumnId,
@@ -581,15 +578,15 @@ export default function BaseTable({ tableId }: { tableId: number }) {
             });
         }
     };
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
     const columnHelper = createColumnHelper<RowData>();
-    
+
     const rowNumberColumn = columnHelper.display({
         id: "rowNumber",
         header: () => (
@@ -601,7 +598,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         size: 40,
         enableResizing: false,
     });
-    
+
     const columns = useMemo(() => {
         if (!localColumns.length) return [];
         const dynamicColumns = localColumns.map((col) =>
@@ -635,13 +632,13 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                                         typeof editingCell.columnId === "string" && editingCell.columnId.startsWith("temp")
                                             ? editingCell.columnId
                                             : idMapping.columns[editingCell.columnId] ?? editingCell.columnId;
-                                
+
                                     if (!mappedRowId || !mappedColumnId) {
                                         console.error("Invalid IDs for onBlur update:", { mappedRowId, mappedColumnId });
                                         setEditingCell(null);
                                         return;
                                     }
-                                
+
                                     updateCellOptimistically(info, {
                                         rowId: mappedRowId,
                                         columnId: mappedColumnId,
@@ -649,10 +646,10 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                                     });
                                     setEditingCell(null);
                                 }}
-                                
-                                
-                                
-                                
+
+
+
+
                                 onKeyDown={(e) => {
                                     if (e.key === "Escape") {
                                         updateCellOptimistically(info, {
@@ -661,19 +658,19 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                                         });
                                         setEditingCell(null);
                                     }
-    
+
                                     if (e.key === "Tab") {
                                         e.preventDefault();
                                         updateCellOptimistically(info, {
                                             ...editingCell,
                                             columnId,
                                         });
-    
+
                                         const currentColumnIndex = localColumns.findIndex(
                                             (col) => col.accessorKey === columnId
                                         );
                                         const nextColumnIndex = currentColumnIndex + 1;
-    
+
                                         if (nextColumnIndex < localColumns.length) {
                                             const nextColumn = localColumns[nextColumnIndex];
                                             if (nextColumn) {
@@ -686,7 +683,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                                         } else {
                                             setEditingCell(null);
                                         }
-                                        
+
                                     }
                                 }}
                                 autoFocus
@@ -713,7 +710,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         );
         return [rowNumberColumn, ...dynamicColumns];
     }, [localColumns, localRows, editingCell]);
-    
+
     const table = useReactTable({
         data: localRows,
         columns,
@@ -730,132 +727,122 @@ export default function BaseTable({ tableId }: { tableId: number }) {
 
 
     return (
-        <div className="flex flex-col relative flex-grow ">
-
-            <TableHeader isLoading={isLoading} toggleSidebar={toggleSidebar} />
-
-            <div className="flex  flex-1">
-                <Sidebar isOpen={isSidebarOpen} />
-
-                <div className="flex-grow relative overflow-hidden">
-
-                    {isLoading ? (
-                        <div className="fixed inset-0 flex flex-col items-center justify-center ">
-                            <div className="relative w-10 h-10">
-                                <div className="absolute inset-0  border-4 border-t-transparent border-l-gray-500 border-r-gray-500 border-b-transparent rounded-full animate-spin"></div>
-                            </div>
-                            <p className="mt-4 text-gray-600 text-lg font-medium">Loading View</p>
-                        </div>
-                    ) : (
-                        <div className="relative">
-
-                            <div
-                                className="absolute  bg-[#fcfcfc] border-gray-300 border-r min-h-screen"
-                                style={{
-                                    width: `${(table.getHeaderGroups()?.[0]?.headers?.[0]?.getSize?.() ?? 0) +
-                                        (table.getHeaderGroups()?.[0]?.headers?.[1]?.getSize?.() ?? 0) + 1
-                                        }px`,
-                                    height: "100%",
-                                }}
-                            ></div>
-
-                            <div
-                                className="absolute  bg-[#fbfbfb] border-b border-gray-300 min-h-30 w-full"
-                                style={{
-
-                                    height: "30px",
-                                }}
-                            ></div>
-
-                            <table className="table-auto border-collapse text-xs relative">
-                                <thead style={{ height: "30px" }}>
-                                    {table.getHeaderGroups().map((headerGroup) => (
-                                        <tr key={headerGroup.id} className="border-b border-gray-300">
-                                            {headerGroup.headers.map((header, index) => (
-                                                <th
-                                                    key={header.id}
-                                                    className={`relative px-2 bg-gray-100 font-normal text-black ${index === 0 ? "text-center" : "text-left border-r border-gray-300"
-                                                        }`}
-                                                    style={{ width: `${header.getSize()}px` }}
-                                                >
-                                                    <div
-                                                        className={`${index === 0
-                                                            ? ""
-                                                            : "flex items-center justify-between"
-                                                            }`}
-                                                    >
-
-                                                        {header.isPlaceholder
-                                                            ? null
-                                                            : flexRender(header.column.columnDef.header, header.getContext())}
-
-                                                        {index > 0 && (
-                                                            <FiChevronDown className="text-gray-500 " />
-                                                        )}
-                                                    </div>
-                                                    {header.column.getCanResize() && (
-                                                        <div
-                                                            onMouseDown={header.getResizeHandler()}
-                                                            onTouchStart={header.getResizeHandler()}
-                                                            className="absolute right-0 top-0 h-full w-0.5 bg-blue-500 cursor-col-resize opacity-0 hover:opacity-100"
-                                                        />
-                                                    )}
-                                                </th>
-                                            ))}
-                                            <th
-                                                className="bg-gray-100 border-b border-l border-r border-gray-300 px-10 cursor-pointer text-gray-500 font-medium"
-                                                onClick={handleAddColumn}
-                                            >
-                                                +
-                                            </th>
-                                        </tr>
-                                    ))}
-                                </thead>
-                                <tbody>
-                                    {table.getRowModel().rows.map((row) => (
-                                        <tr key={row.id} className="hover:bg-gray-100 bg-white">
-                                            {row.getVisibleCells().map((cell, index) => (
-                                                <td
-                                                    key={cell.id}
-                                                    className={`p-0 text-xs border-b border-gray-300 ${index === 0 ? "text-gray-500" : "border-r border-gray-300"
-                                                        }`}
-                                                    style={{ height: "30px" }}
-                                                >
-                                                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    ))}
-
-
-
-                                    <tr className="hover:bg-gray-100 bg-white">
-                                        <td
-                                            className=" border-b border-gray-300  text-start text-lg flex cursor-pointer  text-gray-500 "
-                                        >
-                                            <button className={"ml-3"} onClick={handleAddRow}>+</button>
-                                        </td>
-                                        {Array.from({ length: table.getAllColumns().length - 2 }).map((_, index) => (
-
-                                            <td
-                                                key={index}
-                                                className={`border-b  ${index === 0 ? "border-r border-gray-300 cursor-pointer" : "border-gray-300"
-                                                    }`} onClick={handleAddRow}
-                                            ></td>
-                                        ))}
-                                        {table.getAllColumns().length > 1 && (
-                                            <td className="border-r border-b border-gray-300  cursor-pointer" onClick={handleAddRow}></td>
-                                        )}
-                                    </tr>
-
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+        <div>
+            {isLoading ? (
+                <div className="fixed inset-0 flex flex-col items-center justify-center ">
+                    <div className="relative w-10 h-10">
+                        <div className="absolute inset-0  border-4 border-t-transparent border-l-gray-500 border-r-gray-500 border-b-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <p className="mt-4 text-gray-600 text-lg font-medium">Loading View</p>
                 </div>
+            ) : (
+                <div className="relative">
 
-            </div>
+                    {/* <div
+                        className="absolute  bg-[#fcfcfc] border-gray-300 border-r min-h-screen"
+                        style={{
+                            width: `${(table.getHeaderGroups()?.[0]?.headers?.[0]?.getSize?.() ?? 0) +
+                                (table.getHeaderGroups()?.[0]?.headers?.[1]?.getSize?.() ?? 0) + 1
+                                }px`,
+                            height: "100%",
+                        }}
+                    ></div> */}
+
+                    <div
+                        className="absolute  bg-[#fbfbfb] border-b border-gray-300 min-h-30 w-full"
+                        style={{
+
+                            height: "30px",
+                        }}
+                    ></div>
+
+                    <table className="table-auto border-collapse text-xs relative">
+                        <thead style={{ height: "30px" }}>
+                            {table.getHeaderGroups().map((headerGroup) => (
+                                <tr key={headerGroup.id} className="border-b border-gray-300">
+                                    {headerGroup.headers.map((header, index) => (
+                                        <th
+                                            key={header.id}
+                                            className={`relative px-2 bg-gray-100 font-normal text-black ${index === 0 ? "text-center" : "text-left border-r border-gray-300"
+                                                }`}
+                                            style={{ width: `${header.getSize()}px` }}
+                                        >
+                                            <div
+                                                className={`${index === 0
+                                                    ? ""
+                                                    : "flex items-center justify-between"
+                                                    }`}
+                                            >
+
+                                                {header.isPlaceholder
+                                                    ? null
+                                                    : flexRender(header.column.columnDef.header, header.getContext())}
+
+                                                {index > 0 && (
+                                                    <FiChevronDown className="text-gray-500 " />
+                                                )}
+                                            </div>
+                                            {header.column.getCanResize() && (
+                                                <div
+                                                    onMouseDown={header.getResizeHandler()}
+                                                    onTouchStart={header.getResizeHandler()}
+                                                    className="absolute right-0 top-0 h-full w-0.5 bg-blue-500 cursor-col-resize opacity-0 hover:opacity-100"
+                                                />
+                                            )}
+                                        </th>
+                                    ))}
+                                    <th
+                                        className="bg-gray-100 border-b border-l border-r border-gray-300 px-10 cursor-pointer text-gray-500 font-medium"
+                                        onClick={handleAddColumn}
+                                    >
+                                        +
+                                    </th>
+                                </tr>
+                            ))}
+                        </thead>
+                        <tbody>
+                            {table.getRowModel().rows.map((row) => (
+                                <tr key={row.id} className="hover:bg-gray-100 bg-white">
+                                    {row.getVisibleCells().map((cell, index) => (
+                                        <td
+                                            key={cell.id}
+                                            className={`p-0 text-xs border-b border-gray-300 ${index === 0 ? "text-gray-500" : "border-r border-gray-300"
+                                                }`}
+                                            style={{ height: "30px" }}
+                                        >
+                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+
+
+
+                            <tr className="hover:bg-gray-100 bg-white">
+                                <td
+                                    className=" border-b border-gray-300  text-start text-lg flex cursor-pointer  text-gray-500 "
+                                >
+                                    <button className={"ml-3"} onClick={handleAddRow}>+</button>
+                                </td>
+                                {Array.from({ length: table.getAllColumns().length - 2 }).map((_, index) => (
+
+                                    <td
+                                        key={index}
+                                        className={`border-b  ${index === 0 ? "border-r border-gray-300 cursor-pointer" : "border-gray-300"
+                                            }`} onClick={handleAddRow}
+                                    ></td>
+                                ))}
+                                {table.getAllColumns().length > 1 && (
+                                    <td className="border-r border-b border-gray-300  cursor-pointer" onClick={handleAddRow}></td>
+                                )}
+                            </tr>
+
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
+
 
     );
 }
