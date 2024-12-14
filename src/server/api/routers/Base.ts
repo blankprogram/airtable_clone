@@ -407,13 +407,12 @@ export const baseRouter = createTRPCRouter({
   .input(
     z.object({
       tableId: z.number(),
-      rowCount: z.number().default(15000), // Default to 15,000 rows
+      rowCount: z.number().default(15000), 
     })
   )
   .mutation(async ({ ctx, input }) => {
     const { tableId, rowCount } = input;
 
-    // Fetch all columns for the table
     const columns = await ctx.db.column.findMany({
       where: { tableId },
       select: { id: true },

@@ -25,34 +25,36 @@ export default function Base() {
   const addBulkRowsMutation = api.post.addBulkRows.useMutation();
 
   const handleBulkAddRows = (rowCount: number) => {
-      const tempRows = Array.from({ length: rowCount }).map(() => ({
-          id: `temp-${Date.now()}-${Math.random()}`,
-      }));
+    const tempRows = Array.from({ length: rowCount }).map(() => ({
+      id: `temp-${Date.now()}-${Math.random()}`,
+    }));
   
-      setLocalRows((prev) => [...prev, ...tempRows]);
+    setLocalRows((prev) => [...prev, ...tempRows]);
   
-      addBulkRowsMutation.mutate(
-          { tableId: parseInt(tableId, 10), rowCount },
-          {
-              onSuccess: (response) => {
-                  if (response.rows) {
-                      setLocalRows((prev) =>
-                          prev.map((row) =>
-                              row.id.toString().startsWith("temp")
-                                  ? response.rows.find((r) => r.id) ?? row
-                                  : row
-                          )
-                      );
-                  }
-              },
-              onError: () => {
-                  setLocalRows((prev) =>
-                      prev.filter((row) => !row.id.toString().startsWith("temp"))
-                  );
-              },
+    addBulkRowsMutation.mutate(
+      { tableId: parseInt(tableId, 10), rowCount },
+      {
+        onSuccess: (response) => {
+          if (response.rows) {
+            setLocalRows((prev) =>
+              prev.map((row) =>
+                row.id.toString().startsWith("temp")
+                  ? response.rows.find((newRow) => !prev.some((r) => r.id === newRow.id)) ?? row
+                  : row
+              )
+            );
           }
-      );
+        },
+        onError: () => {
+          setLocalRows((prev) =>
+            prev.filter((row) => !row.id.toString().startsWith("temp"))
+          );
+        },
+      }
+    );
+    
   };
+  
   
 
 
