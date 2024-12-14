@@ -458,8 +458,8 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                 );
                 editsForColumn.forEach((edit) => {
                     editCellMutation.mutate({
-                        rowId: Number(edit.rowId),
-                        columnId: newColumn.id!,
+                        rowId: edit.rowId,
+                        columnId: newColumn.id,
                         value: edit.value,
                     });
                 });
