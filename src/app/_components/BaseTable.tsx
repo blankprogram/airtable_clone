@@ -201,169 +201,164 @@ export function TableHeader({ isLoading, toggleSidebar }: { isLoading: boolean; 
 }
 
 export function Sidebar() {
-  return (
-    <div className="bg-white border-r w-72 flex flex-col h-full">
-      <div className="py-4 px-6">
-        {/* Search Section */}
-        <div className="flex items-center justify-center mb-2">
-          <div className="flex items-center relative">
-            <svg
-              width="16"
-              height="16"
-              className="absolute left-2 text-gray-500"
-              fill="currentColor"
-              aria-hidden="true"
-              style={{ shapeRendering: "geometricPrecision" }}
-            >
-              <use href={`/icons/icon_definitions.svg#MagnifyingGlass`} />
-            </svg>
+    return (
+        <div className="bg-white border-r w-72 flex flex-col h-full">
+            <div className="py-4 px-6">
+                <div className="flex items-center justify-center mb-2">
+                    <div className="flex items-center relative">
+                        <svg
+                            width="16"
+                            height="16"
+                            className="absolute left-2 text-gray-500"
+                            fill="currentColor"
+                            aria-hidden="true"
+                            style={{ shapeRendering: "geometricPrecision" }}
+                        >
+                            <use href={`/icons/icon_definitions.svg#MagnifyingGlass`} />
+                        </svg>
 
-            <input
-              type="text"
-              placeholder="Find a view"
-              className="bg-transparent pl-8 pr-8 focus:outline-none flex-grow text-sm"
-            />
-            <svg
-              width="16"
-              height="16"
-              className="absolute right-2 text-gray-500"
-              fill="currentColor"
-              aria-hidden="true"
-              style={{ shapeRendering: "geometricPrecision" }}
-            >
-              <use href={`/icons/icon_definitions.svg#Cog`} />
-            </svg>
-          </div>
-        </div>
-        <div className="border-b border-gray-300 mb-2"></div>
-
-        {/* Views Section */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm">Grid View</p>
-            <button className="text-gray-500 text-sm">+</button>
-          </div>
-        </div>
-      </div>
-
-      {/* Spacer to push "Create" to the bottom */}
-      <div className="flex-grow"></div>
-
-      {/* Create Section */}
-      <div className="px-6 pt-4">
-        <div className="border-b border-gray-300 mb-4"></div>
-        <div className="flex items-center justify-between ">
-          <p className="text-sm font-semibold">Create</p>
-          <button className="text-gray-500">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              className="w-4 h-4"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z"
-              />
-            </svg>
-          </button>
-        </div>
-        <div className="space-y-3 py-6">
-          {[
-            { name: "Grid", icon: "GridFeature", color: "text-blue-500" },
-            { name: "Calendar", icon: "CalendarFeature", color: "text-[#dc703e]" },
-            { name: "Gallery", icon: "GalleryFeature", color: "text-purple-500" },
-            { name: "Kanban", icon: "KanbanFeature", color: "text-green-500" },
-            { name: "Timeline", icon: "TimelineFeature", color: "text-red-500" },
-            { name: "List", icon: "ListFeature", color: "text-blue-500" },
-            { name: "Gantt", icon: "Gantt", color: "text-[#63aaa6]" },
-            { name: "New Section", icon: "", color: "text-pink-500" },
-          ].map((view, index) => (
-            <div key={view.name}>
-              {view.icon ? (
-                <div className="flex items-center justify-between ">
-                  <div className="flex items-center gap-3">
-                    <svg
-                      width="16"
-                      height="16"
-                      fill="currentColor"
-                      aria-hidden="true"
-                      className={view.color}
-                    >
-                      <use href={`/icons/icon_definitions.svg#${view.icon}`} />
-                    </svg>
-                    <p className="text-sm font-medium">{view.name}</p>
-                  </div>
-                  <button className="text-gray-500 text-sm">
-                    <svg
-                      width="16"
-                      height="16"
-                      fill="currentColor"
-                      aria-hidden="true"
-                      className="text-gray-500"
-                    >
-                      <use href={`/icons/icon_definitions.svg#Plus`} />
-                    </svg>
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <p className="text-sm font-medium">{view.name}</p>
-                  </div>
-                  <button className="text-gray-500 text-sm">
-                    <svg
-                      width="16"
-                      height="16"
-                      fill="currentColor"
-                      aria-hidden="true"
-                      className="text-gray-500"
-                    >
-                      <use href={`/icons/icon_definitions.svg#Plus`} />
-                    </svg>
-                  </button>
-                </div>
-              )}
-
-              {view.name === "New Section" && (
-                <>
-                  <div className="border-b border-gray-300 my-4"></div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <svg
-                        width="16"
-                        height="16"
-                        fill="currentColor"
-                        aria-hidden="true"
-                        className="text-pink-500"
-                      >
-                        <use href={`/icons/icon_definitions.svg#Form`} />
-                      </svg>
-                      <p className="text-sm font-medium">Form</p>
+                        <input
+                            type="text"
+                            placeholder="Find a view"
+                            className="bg-transparent pl-8 pr-8 focus:outline-none flex-grow text-sm"
+                        />
+                        <svg
+                            width="16"
+                            height="16"
+                            className="absolute right-2 text-gray-500"
+                            fill="currentColor"
+                            aria-hidden="true"
+                            style={{ shapeRendering: "geometricPrecision" }}
+                        >
+                            <use href={`/icons/icon_definitions.svg#Cog`} />
+                        </svg>
                     </div>
-                    <button className="text-gray-500 text-sm">
-                      <svg
-                        width="16"
-                        height="16"
-                        fill="currentColor"
-                        aria-hidden="true"
-                        className="text-gray-500"
-                      >
-                        <use href={`/icons/icon_definitions.svg#Plus`} />
-                      </svg>
-                    </button>
-                  </div>
-                </>
-              )}
+                </div>
+                <div className="border-b border-gray-300 mb-2"></div>
+
+                <div>
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm">Grid View</p>
+                        <button className="text-gray-500 text-sm">+</button>
+                    </div>
+                </div>
             </div>
-          ))}
+
+            <div className="flex-grow"></div>
+            <div className="px-6 pt-4">
+                <div className="border-b border-gray-300 mb-4"></div>
+                <div className="flex items-center justify-between ">
+                    <p className="text-sm font-semibold">Create</p>
+                    <button className="text-gray-500">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            className="w-4 h-4"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z"
+                            />
+                        </svg>
+                    </button>
+                </div>
+                <div className="space-y-3 py-6">
+                    {[
+                        { name: "Grid", icon: "GridFeature", color: "text-blue-500" },
+                        { name: "Calendar", icon: "CalendarFeature", color: "text-[#dc703e]" },
+                        { name: "Gallery", icon: "GalleryFeature", color: "text-purple-500" },
+                        { name: "Kanban", icon: "KanbanFeature", color: "text-green-500" },
+                        { name: "Timeline", icon: "TimelineFeature", color: "text-red-500" },
+                        { name: "List", icon: "ListFeature", color: "text-blue-500" },
+                        { name: "Gantt", icon: "Gantt", color: "text-[#63aaa6]" },
+                        { name: "New Section", icon: "", color: "text-pink-500" },
+                    ].map((view, index) => (
+                        <div key={view.name}>
+                            {view.icon ? (
+                                <div className="flex items-center justify-between ">
+                                    <div className="flex items-center gap-3">
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            fill="currentColor"
+                                            aria-hidden="true"
+                                            className={view.color}
+                                        >
+                                            <use href={`/icons/icon_definitions.svg#${view.icon}`} />
+                                        </svg>
+                                        <p className="text-sm font-medium">{view.name}</p>
+                                    </div>
+                                    <button className="text-gray-500 text-sm">
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            fill="currentColor"
+                                            aria-hidden="true"
+                                            className="text-gray-500"
+                                        >
+                                            <use href={`/icons/icon_definitions.svg#Plus`} />
+                                        </svg>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <p className="text-sm font-medium">{view.name}</p>
+                                    </div>
+                                    <button className="text-gray-500 text-sm">
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            fill="currentColor"
+                                            aria-hidden="true"
+                                            className="text-gray-500"
+                                        >
+                                            <use href={`/icons/icon_definitions.svg#Plus`} />
+                                        </svg>
+                                    </button>
+                                </div>
+                            )}
+
+                            {view.name === "New Section" && (
+                                <>
+                                    <div className="border-b border-gray-300 my-4"></div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <svg
+                                                width="16"
+                                                height="16"
+                                                fill="currentColor"
+                                                aria-hidden="true"
+                                                className="text-pink-500"
+                                            >
+                                                <use href={`/icons/icon_definitions.svg#Form`} />
+                                            </svg>
+                                            <p className="text-sm font-medium">Form</p>
+                                        </div>
+                                        <button className="text-gray-500 text-sm">
+                                            <svg
+                                                width="16"
+                                                height="16"
+                                                fill="currentColor"
+                                                aria-hidden="true"
+                                                className="text-gray-500"
+                                            >
+                                                <use href={`/icons/icon_definitions.svg#Plus`} />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }
 
 
@@ -376,16 +371,6 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         { rowId: number | string; columnId: number | string; value: string }[]
     >([]);
 
-    const [idMapping, setIdMapping] = useState<{
-        rows: Record<string, number>;
-        columns: Record<string, number>;
-    }>({ rows: {}, columns: {} });
-
-
-
-
-
-
     const [localRows, setLocalRows] = useState<RowData[]>([]);
     const [localColumns, setLocalColumns] = useState<ColumnData[]>([]);
     const [editingCell, setEditingCell] = useState<{
@@ -394,12 +379,9 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         value: string;
     } | null>(null);
 
-
     useEffect(() => {
         void refetch();
     }, [refetch]);
-
-
 
     useMemo(() => {
         if (data) {
@@ -417,10 +399,6 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         },
         onSuccess: (newRow, _, context) => {
             if (context?.tempId) {
-                setIdMapping((prev) => ({
-                    ...prev,
-                    rows: { ...prev.rows, [context.tempId]: newRow.id },
-                }));
                 setLocalRows((prev) =>
                     prev.map((row) => (row.id === context.tempId ? { ...row, ...newRow } : row))
                 );
@@ -463,10 +441,6 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         },
         onSuccess: (newColumn, _, context) => {
             if (context?.tempAccessorKey) {
-                setIdMapping((prev) => ({
-                    ...prev,
-                    columns: { ...prev.columns, [context.tempAccessorKey]: newColumn.id },
-                }));
                 setLocalColumns((prev) =>
                     prev.map((col) =>
                         col.accessorKey === context.tempAccessorKey ? { ...newColumn } : col
@@ -474,7 +448,9 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                 );
 
                 if (editingCell?.columnId === context.tempAccessorKey) {
-                    setEditingCell((prev) => (prev ? { ...prev, columnId: newColumn.id } : null));
+                    setEditingCell((prev) =>
+                        prev ? { ...prev, columnId: newColumn.accessorKey } : null
+                    );
                 }
 
                 const editsForColumn = pendingEdits.filter(
@@ -483,7 +459,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                 editsForColumn.forEach((edit) => {
                     editCellMutation.mutate({
                         rowId: Number(edit.rowId),
-                        columnId: newColumn.id,
+                        columnId: newColumn.id!,
                         value: edit.value,
                     });
                 });
@@ -492,19 +468,16 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                 );
             }
         },
-
     });
 
     const editCellMutation = api.post.editCell.useMutation({
         onMutate: async ({ rowId, columnId, value }) => {
-            const columnIdForUpdate =
-                typeof columnId === "string" ? parseInt(columnId, 10) : columnId;
             setLocalRows((prev) =>
                 prev.map((row) =>
                     row.id === rowId ? { ...row, [columnId]: value } : row
                 )
             );
-            return { rowId, columnId: columnIdForUpdate, previousValue: value };
+            return { rowId, columnId, previousValue: value };
         },
         onError: (_, { rowId, columnId }, context) => {
             if (context?.rowId && context?.columnId) {
@@ -545,45 +518,23 @@ export default function BaseTable({ tableId }: { tableId: number }) {
 
         const { rowId, columnId, value } = editingCell;
 
-        const mappedRowId =
-            typeof rowId === "string" && rowId.startsWith("temp") ? idMapping.rows[rowId] ?? rowId : rowId;
-        const mappedColumnId =
-            typeof columnId === "string" && columnId.startsWith("temp") ? columnId : idMapping.columns[columnId] ?? columnId;
+        setLocalRows((prev) =>
+            prev.map((row) => (row.id === rowId ? { ...row, [columnId]: value } : row))
+        );
 
         const isTemporaryColumn = typeof columnId === "string" && columnId.startsWith("temp");
         const isTemporaryRow = typeof rowId === "string" && rowId.startsWith("temp");
 
-        if (!mappedRowId || !mappedColumnId) {
-            console.error("Invalid rowId or columnId mapping:", { rowId, columnId });
-            return;
-        }
-
-        setLocalRows((prev) =>
-            prev.map((row) =>
-                row.id === mappedRowId ? { ...row, [mappedColumnId]: value } : row
-            )
-        );
-
         if (isTemporaryColumn || isTemporaryRow) {
-
-            setPendingEdits((prev) => [...prev, { rowId: mappedRowId, columnId: mappedColumnId, value }]);
+            setPendingEdits((prev) => [...prev, { rowId, columnId, value }]);
         } else {
-            const numericColumnId =
-                typeof mappedColumnId === "string" ? parseInt(mappedColumnId, 10) : mappedColumnId;
-
             editCellMutation.mutate({
-                rowId: mappedRowId as number,
-                columnId: numericColumnId,
+                rowId: rowId as number,
+                columnId: typeof columnId === "string" ? parseInt(columnId, 10) : columnId,
                 value,
             });
         }
     };
-
-
-
-
-
-
 
     const columnHelper = createColumnHelper<RowData>();
 
@@ -624,32 +575,9 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                                     )
                                 }
                                 onBlur={() => {
-                                    const mappedRowId =
-                                        typeof editingCell.rowId === "string" && editingCell.rowId.startsWith("temp")
-                                            ? idMapping.rows[editingCell.rowId] ?? editingCell.rowId
-                                            : editingCell.rowId;
-                                    const mappedColumnId =
-                                        typeof editingCell.columnId === "string" && editingCell.columnId.startsWith("temp")
-                                            ? editingCell.columnId
-                                            : idMapping.columns[editingCell.columnId] ?? editingCell.columnId;
-
-                                    if (!mappedRowId || !mappedColumnId) {
-                                        console.error("Invalid IDs for onBlur update:", { mappedRowId, mappedColumnId });
-                                        setEditingCell(null);
-                                        return;
-                                    }
-
-                                    updateCellOptimistically(info, {
-                                        rowId: mappedRowId,
-                                        columnId: mappedColumnId,
-                                        value: editingCell.value,
-                                    });
+                                    updateCellOptimistically(info, editingCell);
                                     setEditingCell(null);
                                 }}
-
-
-
-
                                 onKeyDown={(e) => {
                                     if (e.key === "Escape") {
                                         updateCellOptimistically(info, {
@@ -723,6 +651,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
             enableResizing: true,
         },
     });
+
 
 
 
