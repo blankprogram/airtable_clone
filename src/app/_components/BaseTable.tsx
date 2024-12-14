@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     type CellContext,
     createColumnHelper,
@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-table";
 import { type RouterOutputs, api } from "~/trpc/react";
 import { FiChevronDown } from "react-icons/fi";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 type RowData = Omit<RouterOutputs["post"]["getTableData"]["rows"][number], "id"> & {
     id: number | string;
@@ -18,7 +19,15 @@ type ColumnData = Omit<RouterOutputs["post"]["getTableData"]["columns"][number],
     id: number | null;
 };
 
-export function TableHeader({ isLoading, toggleSidebar }: { isLoading: boolean; toggleSidebar: () => void }) {
+export function TableHeader({
+    isLoading,
+    toggleSidebar,
+    handleBulkAddRows,
+  }: {
+    isLoading: boolean;
+    toggleSidebar: () => void;
+    handleBulkAddRows: (rowCount: number) => void; // Accept handleBulkAddRows
+  }) {
     const buttons = [
         { label: "Views", iconId: "List", style: "text-black" },
         { divider: true },
@@ -191,10 +200,12 @@ export function TableHeader({ isLoading, toggleSidebar }: { isLoading: boolean; 
 
             })}
 
-            <button className="text-sm font-light hover:bg-gray-100 px-2 py-1 rounded">
-                <span>15000 rows</span>
-
-            </button>
+<button
+        className="text-sm font-light hover:bg-gray-100 px-2 py-1 rounded"
+        onClick={() => handleBulkAddRows(15000)}
+      >
+        <span>Add 15,000 Rows</span>
+      </button>
 
         </div>
     );
@@ -362,7 +373,15 @@ export function Sidebar() {
 }
 
 
-export default function BaseTable({ tableId }: { tableId: number }) {
+export default function BaseTable({
+    tableId,
+    localRows,
+    setLocalRows,
+  }: {
+    tableId: number;
+    localRows: RowData[];
+    setLocalRows: React.Dispatch<React.SetStateAction<RowData[]>>;
+  }) {
     const { data, isLoading, refetch } = api.post.getTableData.useQuery({
         tableId: tableId,
     });
@@ -371,7 +390,6 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         { rowId: number | string; columnId: number | string; value: string }[]
     >([]);
 
-    const [localRows, setLocalRows] = useState<RowData[]>([]);
     const [localColumns, setLocalColumns] = useState<ColumnData[]>([]);
     const [editingCell, setEditingCell] = useState<{
         rowId: number | string;
@@ -385,8 +403,8 @@ export default function BaseTable({ tableId }: { tableId: number }) {
 
     useMemo(() => {
         if (data) {
-            setLocalRows(data.rows || []);
-            setLocalColumns(data.columns || []);
+            setLocalRows(data.rows ?? []);
+            setLocalColumns(data.columns ?? []);
         }
     }, [data]);
 
@@ -458,7 +476,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                 );
                 editsForColumn.forEach((edit) => {
                     editCellMutation.mutate({
-                        rowId: edit.rowId,
+                        rowId: edit.rowId as number,
                         columnId: newColumn.id,
                         value: edit.value,
                     });
@@ -525,7 +543,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         const isTemporaryColumn = typeof columnId === "string" && columnId.startsWith("temp");
         const isTemporaryRow = typeof rowId === "string" && rowId.startsWith("temp");
 
-        if (isTemporaryColumn || isTemporaryRow) {
+        if (isTemporaryColumn ?? isTemporaryRow) {
             setPendingEdits((prev) => [...prev, { rowId, columnId, value }]);
         } else {
             editCellMutation.mutate({
@@ -605,7 +623,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                                                 setEditingCell({
                                                     rowId,
                                                     columnId: nextColumn.accessorKey,
-                                                    value: String(info.row.original[nextColumn.accessorKey as keyof RowData] || ""),
+                                                    value: String(info.row.original[nextColumn.accessorKey as keyof RowData] ?? ""),
                                                 });
                                             }
                                         } else {
@@ -625,7 +643,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                                 setEditingCell({
                                     rowId,
                                     columnId,
-                                    value: cellValue || "",
+                                    value: cellValue ?? "",
                                 })
                             }
                             className="cursor-pointer w-full h-full px-2 py-1 flex items-center"
@@ -638,6 +656,8 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         );
         return [rowNumberColumn, ...dynamicColumns];
     }, [localColumns, localRows, editingCell]);
+
+
 
     const table = useReactTable({
         data: localRows,
@@ -652,6 +672,25 @@ export default function BaseTable({ tableId }: { tableId: number }) {
         },
     });
 
+    const parentRef = useRef<HTMLDivElement>(null);
+
+    const virtualizer = useVirtualizer({
+        count: table.getRowModel().rows.length,
+        getScrollElement: () => parentRef.current,
+        estimateSize: () => 30,
+        overscan: 10,
+    });
+
+    const virtualRows = virtualizer.getVirtualItems();
+
+    const paddingTop = virtualRows[0]?.start ?? 0;
+    const lastVirtualRow = virtualRows?.[virtualRows.length - 1];
+    const paddingBottom =
+        lastVirtualRow?.end !== undefined
+            ? virtualizer.getTotalSize() - lastVirtualRow.end
+            : 0;
+
+
 
 
 
@@ -665,7 +704,7 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                     <p className="mt-4 text-gray-600 text-lg font-medium">Loading View</p>
                 </div>
             ) : (
-                <div className="relative">
+                <div ref={parentRef} className="relative">
 
                     {/* <div
                         className="absolute  bg-[#fcfcfc] border-gray-300 border-r min-h-screen"
@@ -730,43 +769,55 @@ export default function BaseTable({ tableId }: { tableId: number }) {
                             ))}
                         </thead>
                         <tbody>
-                            {table.getRowModel().rows.map((row) => (
-                                <tr key={row.id} className="hover:bg-gray-100 bg-white">
-                                    {row.getVisibleCells().map((cell, index) => (
-                                        <td
-                                            key={cell.id}
-                                            className={`p-0 text-xs border-b border-gray-300 ${index === 0 ? "text-gray-500" : "border-r border-gray-300"
-                                                }`}
-                                            style={{ height: "30px" }}
-                                        >
-                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                        </td>
-                                    ))}
+                            {paddingTop > 0 && (
+                                <tr>
+                                    <td style={{ height: `${paddingTop}px` }} colSpan={localColumns.length}></td>
                                 </tr>
-                            ))}
+                            )}
 
+                            {virtualRows.map((virtualRow) => {
+                                const row = table.getRowModel().rows[virtualRow.index];
+                                if (!row) return null;
+                                console.log(`Rendering row index: ${virtualRows.length}`);
+                                return (
+                                    <tr key={row.id} className="hover:bg-gray-100 bg-white">
+                                        {row.getVisibleCells().map((cell, index) => (
+                                            <td
+                                                key={cell.id}
+                                                className={`p-0 text-xs border-b border-gray-300 border-r`}
+                                                style={{ height: "30px" }}
+                                            >
+                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                            </td>
+                                        ))}
+                                    </tr>
+                                );
+                            })}
 
+                            {paddingBottom > 0 && (
+                                <tr>
+                                    <td style={{ height: `${paddingBottom}px` }} colSpan={localColumns.length}></td>
+                                </tr>
+                            )}
 
-                            <tr className="hover:bg-gray-100 bg-white">
-                                <td
-                                    className=" border-b border-gray-300  text-start text-lg flex cursor-pointer  text-gray-500 "
-                                >
-                                    <button className={"ml-3"} onClick={handleAddRow}>+</button>
+                            <tr
+                                className="hover:bg-gray-100 bg-white cursor-pointer"
+                                onClick={handleAddRow}
+                            >
+                                <td className="border-b border-gray-300 border-r text-start text-lg flex text-gray-500">
+                                    <button className="ml-3" >
+                                        +
+                                    </button>
                                 </td>
-                                {Array.from({ length: table.getAllColumns().length - 2 }).map((_, index) => (
-
+                                {Array.from({ length: localColumns.length }).map((_, index) => (
                                     <td
                                         key={index}
-                                        className={`border-b  ${index === 0 ? "border-r border-gray-300 cursor-pointer" : "border-gray-300"
-                                            }`} onClick={handleAddRow}
+                                        className={`border-b border-gray-300 ${index === 0 || index === localColumns.length - 1 ? "border-r" : ""}`}
                                     ></td>
                                 ))}
-                                {table.getAllColumns().length > 1 && (
-                                    <td className="border-r border-b border-gray-300  cursor-pointer" onClick={handleAddRow}></td>
-                                )}
                             </tr>
-
                         </tbody>
+
                     </table>
                 </div>
             )}

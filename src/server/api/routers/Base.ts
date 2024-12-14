@@ -402,6 +402,73 @@ export const baseRouter = createTRPCRouter({
       message: "Cell updated successfully",
     };
   }),
+
+  addBulkRows: protectedProcedure
+  .input(
+    z.object({
+      tableId: z.number(),
+      rowCount: z.number().default(15000), // Default to 15,000 rows
+    })
+  )
+  .mutation(async ({ ctx, input }) => {
+    const { tableId, rowCount } = input;
+
+    // Fetch all columns for the table
+    const columns = await ctx.db.column.findMany({
+      where: { tableId },
+      select: { id: true },
+    });
+
+    if (columns.length === 0) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "No columns found for the table.",
+      });
+    }
+    const rows = Array.from({ length: rowCount }, () => ({ tableId }));
+
+    const createdRows = await ctx.db.$transaction(async (prisma) => {
+      const newRows = await prisma.row.createMany({
+        data: rows,
+        skipDuplicates: true,
+      });
+
+      return prisma.row.findMany({
+        where: { tableId },
+        select: { id: true },
+        orderBy: { createdAt: "asc" },
+        take: rowCount,
+      });
+    });
+
+    const cells = createdRows.flatMap((row) =>
+      columns.map((column) => ({
+        value: "",
+        columnId: column.id,
+        rowId: row.id,
+      }))
+    );
+
+    await ctx.db.cell.createMany({
+      data: cells,
+      skipDuplicates: true,
+    });
+
+    const responseRows = createdRows.map((row) => ({
+      id: row.id,
+      cells: cells
+        .filter((cell) => cell.rowId === row.id)
+        .map((cell) => ({ columnId: cell.columnId, value: cell.value })),
+    }));
+
+    return {
+      rows: responseRows,
+      success: true,
+      message: `${rowCount} rows and their corresponding cells added successfully.`,
+    };
+  }),
+
+
     
     
 

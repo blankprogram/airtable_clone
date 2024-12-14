@@ -3,7 +3,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import BaseHeader from "~/app/_components/BaseHeader";
 import BaseTable, { Sidebar, TableHeader } from "~/app/_components/BaseTable";
-import { api } from "~/trpc/react";
+import { type RouterOutputs, api } from "~/trpc/react";
 
 export default function Base() {
   const { baseId, tableId } = useParams<{ baseId: string; tableId: string }>();
@@ -12,9 +12,49 @@ export default function Base() {
     { enabled: !!baseId }
   );
 
+  type RowData = Omit<RouterOutputs["post"]["getTableData"]["rows"][number], "id"> & {
+    id: number | string;
+};
+
+
+  const [localRows, setLocalRows] = useState<RowData[]>([]); 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
+
+  const addBulkRowsMutation = api.post.addBulkRows.useMutation();
+
+  const handleBulkAddRows = (rowCount: number) => {
+      const tempRows = Array.from({ length: rowCount }).map(() => ({
+          id: `temp-${Date.now()}-${Math.random()}`,
+      }));
+  
+      setLocalRows((prev) => [...prev, ...tempRows]);
+  
+      addBulkRowsMutation.mutate(
+          { tableId: parseInt(tableId, 10), rowCount },
+          {
+              onSuccess: (response) => {
+                  if (response.rows) {
+                      setLocalRows((prev) =>
+                          prev.map((row) =>
+                              row.id.toString().startsWith("temp")
+                                  ? response.rows.find((r) => r.id) ?? row
+                                  : row
+                          )
+                      );
+                  }
+              },
+              onError: () => {
+                  setLocalRows((prev) =>
+                      prev.filter((row) => !row.id.toString().startsWith("temp"))
+                  );
+              },
+          }
+      );
+  };
+  
+
 
   return (
     <div className="flex flex-col h-screen bg-[#f7f7f7]">
@@ -28,9 +68,8 @@ export default function Base() {
         />
       </div>
 
-      {/* Table Header */}
       <div className="flex-shrink-0 bg-white border-b border-gray-200 z-10">
-        <TableHeader isLoading={isLoading} toggleSidebar={toggleSidebar} />
+        <TableHeader isLoading={isLoading} toggleSidebar={toggleSidebar} handleBulkAddRows={handleBulkAddRows} />
       </div>
 
       <div className="flex flex-grow overflow-hidden">
@@ -42,10 +81,15 @@ export default function Base() {
 
         <div className="flex-grow flex flex-col overflow-hidden">
           <div className="flex-grow overflow-auto">
-            <BaseTable tableId={parseInt(tableId, 10)} />
+            <BaseTable
+              tableId={parseInt(tableId, 10)}
+              localRows={localRows}
+              setLocalRows={setLocalRows}
+            />
           </div>
         </div>
       </div>
     </div>
   );
 }
+
