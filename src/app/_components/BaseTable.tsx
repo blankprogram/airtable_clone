@@ -12,12 +12,8 @@ import { type RouterOutputs, api } from "~/trpc/react";
 import { FiChevronDown } from "react-icons/fi";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
-type RowData = Omit<RouterOutputs["post"]["getTableData"]["rows"][number], "id"> & {
-    id: number | string;
-};
-type ColumnData = Omit<RouterOutputs["post"]["getTableData"]["columns"][number], "id"> & {
-    id: number | null;
-};
+type RowData = RouterOutputs["post"]["getTableData"]["rows"][number];
+type ColumnData = RouterOutputs["post"]["getTableData"]["columns"][number];
 
 export function TableHeader({
     isLoading,
@@ -382,21 +378,26 @@ export default function BaseTable({
     localRows: RowData[];
     setLocalRows: React.Dispatch<React.SetStateAction<RowData[]>>;
 }) {
-    const { data, isLoading, refetch } = api.post.getTableData.useQuery({
-        tableId: tableId,
-    });
+    const { data, isLoading } = api.post.getTableData.useQuery({ tableId });
 
-    const [pendingEdits, setPendingEdits] = useState<
-        { rowId: number | string; columnId: number | string; value: string }[]
-    >([]);
-
+    // Local state for columns, editing state, dropdown, and pending edits
     const [localColumns, setLocalColumns] = useState<ColumnData[]>([]);
     const [editingCell, setEditingCell] = useState<{
-        rowId: number | string;
-        columnId: number | string;
+        cellId: number;
         value: string;
+        rowId: number;
+        columnId: number;
     } | null>(null);
+    const [dropdownVisible, setDropdownVisible] = useState(false);
+    const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number }>({
+        top: 0,
+        left: 0,
+    });
+    const [pendingEdits, setPendingEdits] = useState<
+        { cellId: number; value: string; columnId: number; rowId: number }[]
+    >([]);
 
+    // Sync initial data to local state
     useEffect(() => {
         if (data) {
             setLocalRows(data.rows ?? []);
@@ -404,268 +405,307 @@ export default function BaseTable({
         }
     }, [data, setLocalRows, setLocalColumns]);
 
-    const [dropdownVisible, setDropdownVisible] = useState(false);
-    const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+    // Utility to generate unique temporary IDs
+    const generateTempId = () => -Date.now() + Math.floor(Math.random() * 1000);
 
-    const toggleDropdown = (event: React.MouseEvent<HTMLElement>) => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
-        setDropdownVisible((prev) => !prev);
+    const handleAddRow = () => addRowMutation.mutate({ tableId });
+    const handleAddColumn = (type: "TEXT" | "NUMBER") =>
+        addColumnMutation.mutate({ tableId, name: `Column ${localColumns.length + 1}`, type });
+
+        const toggleDropdown = (event: React.MouseEvent<HTMLElement>) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
+            setDropdownVisible((prev) => !prev);
+        };
+
+        const columnHelper = createColumnHelper<RowData>();
+
+    // Optimistic local rows update helper
+    const updateLocalRows = (cellId: number, value: string) => {
+        setLocalRows((prev) =>
+            prev.map((row) => ({
+                ...row,
+                cells: row.cells.map((cell) =>
+                    cell.id === cellId ? { ...cell, value } : cell
+                ),
+            }))
+        );
     };
 
+    // Add Row Mutation
     const addRowMutation = api.post.addRow.useMutation({
         onMutate: async ({ tableId }) => {
-            const tempId = `temp-${Date.now()}-${Math.random()}`;
-            const tempRow: RowData = { id: tempId };
+            console.log("Adding row...");
+            const tempId = generateTempId();
+            const tempRow: RowData = {
+                id: tempId,
+                cells: localColumns.map((col) => ({
+                    id: generateTempId(),
+                    value: "",
+                    columnId: col.id,
+                })),
+            };
             setLocalRows((prev) => [...prev, tempRow]);
             return { tempId };
         },
         onSuccess: (newRow, _, context) => {
             if (context?.tempId) {
-                setLocalRows((prev) =>
-                    prev.map((row) => (row.id === context.tempId ? { ...row, ...newRow } : row))
-                );
+                console.log("Row successfully added:", newRow);
 
-                if (editingCell?.rowId === context.tempId) {
-                    setEditingCell((prev) => (prev ? { ...prev, rowId: newRow.id } : null));
-                }
-
-                const editsForRow = pendingEdits.filter(
-                    (edit) => edit.rowId === context.tempId
-                );
-                editsForRow.forEach((edit) => {
-                    editCellMutation.mutate({
-                        rowId: newRow.id,
-                        columnId: Number(edit.columnId),
-                        value: edit.value,
-                    });
-                });
-                setPendingEdits((prev) =>
-                    prev.filter((edit) => edit.rowId !== context.tempId)
-                );
-            }
-        },
-    });
-
-    const addColumnMutation = api.post.addColumn.useMutation({
-        onMutate: async ({ name, type = "TEXT" }) => {
-            const tempAccessorKey = `temp-${Date.now()}-${Math.random()}`;
-            const tempColumn: ColumnData = {
-                id: null,
-                name,
-                accessorKey: tempAccessorKey,
-                type,
-            };
-            setLocalColumns((prev) => [...prev, tempColumn]);
-            setLocalRows((prev) =>
-                prev.map((row) => ({ ...row, [tempAccessorKey]: "" }))
-            );
-            return { tempAccessorKey };
-        },
-        onSuccess: (newColumn, _, context) => {
-            if (context?.tempAccessorKey) {
-                setLocalColumns((prev) =>
-                    prev.map((col) =>
-                        col.accessorKey === context.tempAccessorKey ? { ...newColumn } : col
-                    )
-                );
-
-                if (editingCell?.columnId === context.tempAccessorKey) {
-                    setEditingCell((prev) =>
-                        prev ? { ...prev, columnId: newColumn.accessorKey } : null
-                    );
-                }
-
-                const editsForColumn = pendingEdits.filter(
-                    (edit) => edit.columnId === context.tempAccessorKey
-                );
-                editsForColumn.forEach((edit) => {
-                    editCellMutation.mutate({
-                        rowId: edit.rowId as number,
-                        columnId: newColumn.id,
-                        value: edit.value,
-                    });
-                });
-                setPendingEdits((prev) =>
-                    prev.filter((edit) => edit.columnId !== context.tempAccessorKey)
-                );
-            }
-        },
-    });
-
-    const editCellMutation = api.post.editCell.useMutation({
-        onMutate: async ({ rowId, columnId, value }) => {
-            setLocalRows((prev) =>
-                prev.map((row) =>
-                    row.id === rowId ? { ...row, [columnId]: value } : row
-                )
-            );
-            return { rowId, columnId, previousValue: value };
-        },
-        onError: (_, { rowId, columnId }, context) => {
-            if (context?.rowId && context?.columnId) {
+                // Replace temp row with the new row
                 setLocalRows((prev) =>
                     prev.map((row) =>
-                        row.id === context.rowId
-                            ? { ...row, [context.columnId]: context.previousValue }
+                        row.id === context.tempId
+                            ? { ...row, id: newRow.id, cells: newRow.cells }
                             : row
                     )
                 );
+
+                // Update editingCell if it belongs to this row
+                setEditingCell((prev) => {
+                    if (prev?.rowId === context.tempId) {
+                        const updatedCell = newRow.cells.find((c) => c.columnId === prev.columnId);
+                        if (updatedCell) {
+                            return { ...prev, rowId: newRow.id, cellId: updatedCell.id };
+                        }
+                    }
+                    return prev;
+                });
+
+                // Resolve pending edits for this row
+                setPendingEdits((prev) =>
+                    prev.filter((edit) => {
+                        if (edit.rowId === context.tempId) {
+                            const cell = newRow.cells.find((c) => c.columnId === edit.columnId);
+                            if (cell) {
+                                editCellMutation.mutate({ cellId: cell.id, value: edit.value });
+                            }
+                            return false;
+                        }
+                        return true;
+                    })
+                );
             }
         },
     });
 
-    const handleAddRow = () => {
-        addRowMutation.mutate({ tableId: tableId });
+    // Add Column Mutation
+    const addColumnMutation = api.post.addColumn.useMutation({
+        onMutate: async ({ name, type = "TEXT" }) => {
+            console.log("Adding column...");
+            const tempId = generateTempId();
+            const tempColumn: ColumnData = { id: tempId, name, type };
+    
+            // Optimistically add column and cells
+            setLocalColumns((prev) => [...prev, tempColumn]);
+            setLocalRows((prev) =>
+                prev.map((row) => ({
+                    ...row,
+                    cells: [...row.cells, { id: generateTempId(), value: "", columnId: tempId }],
+                }))
+            );
+    
+            return { tempId };
+        },
+        onSuccess: (newColumn, _, context) => {
+            if (context?.tempId) {
+                console.log("Column successfully added:", newColumn);
+    
+                // Update columns
+                setLocalColumns((prev) =>
+                    prev.map((col) =>
+                        col.id === context.tempId ? { ...col, id: newColumn.id } : col
+                    )
+                );
+    
+                // Compute updated rows
+                const updatedRows = localRows.map((row) => ({
+                    ...row,
+                    cells: row.cells.map((cell) => {
+                        const updatedCell = newColumn.cells.find(
+                            (newCell) => newCell.rowId === row.id
+                        );
+                        return cell.columnId === context.tempId
+                            ? {
+                                  ...cell,
+                                  id: updatedCell?.id ?? cell.id,
+                                  columnId: newColumn.id,
+                              }
+                            : cell;
+                    }),
+                }));
+    
+                // Set updated rows
+                setLocalRows(updatedRows);
+    
+                // Update editingCell if it matches this column
+                setEditingCell((prev) => {
+                    if (prev?.columnId === context.tempId) {
+                        const updatedRow = updatedRows.find((r) => r.id === prev.rowId);
+                        const updatedCell = updatedRow?.cells.find(
+                            (c) => c.columnId === newColumn.id
+                        );
+                        if (updatedCell) {
+                            console.log("Updated editingCell:", updatedCell);
+                            return { ...prev, columnId: newColumn.id, cellId: updatedCell.id };
+                        }
+                    }
+                    return prev;
+                });
+    
+                // Resolve pending edits for this column
+                setPendingEdits((prev) =>
+                    prev.filter((edit) => {
+                        if (edit.columnId === context.tempId) {
+                            const row = updatedRows.find((r) => r.id === edit.rowId);
+                            const cell = newColumn.cells.find((c) => c.rowId === row?.id);
+                            if (cell) {
+                                editCellMutation.mutate({ cellId: cell.id, value: edit.value });
+                            }
+                            return false;
+                        }
+                        return true;
+                    })
+                );
+            }
+        },
+    });
+    
+
+    // Edit Cell Mutation
+    const editCellMutation = api.post.editCell.useMutation({
+        onMutate: async ({ cellId, value }) => {
+            console.log("Editing cell:", cellId);
+            updateLocalRows(cellId, value);
+            return { cellId, previousValue: value };
+        },
+        onError: (_, { cellId }, context) => {
+            console.error("Error editing cell, rolling back:", context);
+            if (context?.cellId) {
+                updateLocalRows(cellId, context.previousValue);
+            }
+        },
+    });
+
+    // Start Editing
+    const startEditing = (cellId: number, value: string, rowId: number, columnId: number) => {
+        console.log("Started editing cell:", { cellId, value, rowId, columnId });
+        setEditingCell({ cellId, value, rowId, columnId });
     };
 
-    const handleAddColumn = (type: "TEXT" | "NUMBER") => {
-        const tempColumn: ColumnData = {
-            id: null,
-            name: `Column ${localColumns.length + 1}`,
-            accessorKey: `column_${localColumns.length + 1}`,
-            type: type,
-        };
-        addColumnMutation.mutate({
-            tableId: tableId,
-            name: tempColumn.name,
-            type: tempColumn.type,
-        });
-        setDropdownVisible(false);
-    };
-
-    const updateCellOptimistically = (
-        info: CellContext<RowData, unknown>,
-        editingCell: { rowId: number | string; columnId: number | string; value: string } | null
-    ) => {
-        if (!editingCell) return;
-
-        const { rowId, columnId, value } = editingCell;
-
-        setLocalRows((prev) =>
-            prev.map((row) => (row.id === rowId ? { ...row, [columnId]: value } : row))
-        );
-
-        const isTemporaryColumn =
-            typeof columnId === "string" && columnId.startsWith("temp");
-        const isTemporaryRow = typeof rowId === "string" && rowId.startsWith("temp");
-
-        if (isTemporaryRow || isTemporaryColumn) {
-            setPendingEdits((prev) => [...prev, { rowId, columnId, value }]);
-        } else {
-            editCellMutation.mutate({
-                rowId: rowId as number,
-                columnId: typeof columnId === "string" ? parseInt(columnId, 10) : columnId,
-                value,
-            });
+    // Stop Editing
+    const stopEditing = () => {
+        console.log("Stopping editing for:", editingCell);
+        if (editingCell) {
+            const { cellId, value, rowId, columnId } = editingCell;
+            if (cellId < 0) {
+                setPendingEdits((prev) => [
+                    ...prev,
+                    { cellId, value, columnId, rowId },
+                ]);
+                updateLocalRows(cellId, value);
+            } else {
+                editCellMutation.mutate({ cellId, value });
+            }
+            setEditingCell(null);
         }
     };
 
-
-    const columnHelper = createColumnHelper<RowData>();
-
-    const rowNumberColumn = columnHelper.display({
-        id: "rowNumber",
-        header: () => (
-            <div className="flex justify-start ml-1">
-                <input type="checkbox" />
-            </div>
-        ),
-        cell: (info) => <div className="text-start ml-4">{info.row.index + 1}</div>,
-        size: 40,
-        enableResizing: false,
-    });
-
     const columns = useMemo(() => {
         if (!localColumns.length) return [];
-        const dynamicColumns = localColumns.map((col) =>
-            columnHelper.accessor(col.accessorKey as keyof RowData, {
-                id: col.id?.toString() ?? col.accessorKey,
-                header: col.name,
-                cell: (info) => {
-                    const cellValue = info.row.original[col.accessorKey as keyof RowData] as string;
-                    const rowId = info.row.original.id;
-                    const columnId = col.id?.toString() ?? col.accessorKey;
-                    if (
-                        editingCell &&
-                        editingCell.rowId === rowId &&
-                        editingCell.columnId === columnId
-                    ) {
-                        return (
-                            <input
-                                type="text"
-                                value={editingCell.value}
-                                onChange={(e) =>
-                                    setEditingCell((prev) =>
-                                        prev ? { ...prev, value: e.target.value } : null
-                                    )
-                                }
-                                onBlur={() => {
-                                    updateCellOptimistically(info, editingCell);
-                                    setEditingCell(null);
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Escape") {
-                                        updateCellOptimistically(info, {
-                                            ...editingCell,
-                                            columnId,
-                                        });
-                                        setEditingCell(null);
-                                    }
-
-                                    if (e.key === "Tab") {
-                                        e.preventDefault();
-                                        updateCellOptimistically(info, {
-                                            ...editingCell,
-                                            columnId,
-                                        });
-
-                                        const currentColumnIndex = localColumns.findIndex(
-                                            (col) => col.accessorKey === columnId
-                                        );
-                                        const nextColumnIndex = currentColumnIndex + 1;
-
-                                        if (nextColumnIndex < localColumns.length) {
-                                            const nextColumn = localColumns[nextColumnIndex];
-                                            if (nextColumn) {
-                                                setEditingCell({
+    
+        return [
+            // Row number column
+            columnHelper.display({
+                id: "rowNumber",
+                header: () => (
+                    <div className="ml-1 flex justify-start">
+                        <input type="checkbox" />
+                    </div>
+                ),
+                cell: (info) => (
+                    <div className="ml-4 text-start">{info.row.index + 1}</div>
+                ),
+                size: 40,
+                enableResizing: false,
+            }),
+    
+            // Data columns
+            ...localColumns.map((col) =>
+                columnHelper.accessor(
+                    (row) => {
+                        const cell = row.cells.find((c) => c.columnId === col.id);
+                        return cell?.value ?? "";
+                    },
+                    {
+                        id: col.id.toString(),
+                        header: col.name,
+                        cell: (info) => {
+                            const rowId = info.row.original.id;
+                            const cell = info.row.original.cells.find((c) => c.columnId === col.id);
+                            const value = cell?.value ?? "";
+                            const cellId = cell?.id ?? generateTempId();
+                            const columnId = col.id;
+    
+                            // Handle key events for navigation
+                            const handleKeyDown = (e: React.KeyboardEvent) => {
+                                if (e.key === "Tab") {
+                                    e.preventDefault();
+                                    stopEditing();
+                            
+                                    const nextColumnIndex = localColumns.findIndex((c) => c.id === columnId) + 1;
+                            
+                                    if (nextColumnIndex < localColumns.length) {
+                                        const nextColumn = localColumns[nextColumnIndex];
+                            
+                                        if (nextColumn) {
+                                            const nextCell = info.row.original.cells.find(
+                                                (c) => c.columnId === nextColumn.id
+                                            );
+                                            if (nextCell) {
+                                                startEditing(
+                                                    nextCell.id,
+                                                    nextCell.value,
                                                     rowId,
-                                                    columnId: nextColumn.accessorKey,
-                                                    value: String(info.row.original[nextColumn.accessorKey as keyof RowData] ?? ""),
-                                                });
+                                                    nextColumn.id
+                                                );
                                             }
-                                        } else {
-                                            setEditingCell(null);
                                         }
-
                                     }
-                                }}
-                                autoFocus
-                                className="w-full h-full focus:outline-none px-2 py-1 border-2 border-blue-500"
-                            />
-                        );
+                                } else if (e.key === "Escape") {
+                                    stopEditing();
+                                }
+                            };
+                            
+    
+                            // Cell content
+                            return editingCell?.cellId === cellId ? (
+                                <input
+                                    type="text"
+                                    value={editingCell.value}
+                                    onChange={(e) =>
+                                        startEditing(cellId, e.target.value, rowId, columnId)
+                                    }
+                                    onBlur={stopEditing}
+                                    onKeyDown={handleKeyDown}
+                                    autoFocus
+                                    className="w-full h-full px-2 py-1 border border-blue-500 focus:outline-none"
+                                />
+                            ) : (
+                                <div
+                                    onClick={() => startEditing(cellId, value, rowId, columnId)}
+                                    className="cursor-pointer px-2 py-1"
+                                >
+                                    {value}
+                                </div>
+                            );
+                        },
                     }
-                    return (
-                        <div
-                            onClick={() =>
-                                setEditingCell({
-                                    rowId,
-                                    columnId,
-                                    value: cellValue ?? "",
-                                })
-                            }
-                            className="cursor-pointer w-full h-full px-2 py-1 flex items-center"
-                        >
-                            {cellValue}
-                        </div>
-                    );
-                },
-            })
-        );
-        return [rowNumberColumn, ...dynamicColumns];
-    }, [localColumns, localRows, editingCell]);
-
-
+                )
+            ),
+        ];
+    }, [localColumns, editingCell, localRows]);
+    
 
     const table = useReactTable({
         data: localRows,
@@ -786,7 +826,7 @@ export default function BaseTable({
                             {virtualRows.map((virtualRow) => {
                                 const row = table.getRowModel().rows[virtualRow.index];
                                 if (!row) return null;
-                                console.log('Number of virtualized rows:', virtualRows.length);
+                                // console.log('Number of virtualized rows:', virtualRows.length);
 
                                 return (
                                     <tr key={row.id} className="hover:bg-gray-100 bg-white">

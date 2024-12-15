@@ -32,7 +32,6 @@ model Base {
 model Table {
   id       Int      @id @default(autoincrement())
   name     String
-  rowCount Int      @default(0)
   base     Base     @relation(fields: [baseId], references: [id], onDelete: Cascade)
   baseId   Int
   columns  Column[]
