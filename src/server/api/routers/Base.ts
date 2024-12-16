@@ -293,11 +293,6 @@ export const baseRouter = createTRPCRouter({
         };
     }),
 
-
-
-
-  
-
     addRow: protectedProcedure
     .input(z.object({ tableId: z.number() }))
     .mutation(async ({ ctx, input }) => {
@@ -341,14 +336,6 @@ export const baseRouter = createTRPCRouter({
             cells: cellsMap, // Map of columnId to CellData
         };
     }),
-
-
-
-
-
-
-
-
 
     addColumn: protectedProcedure
     .input(
@@ -403,11 +390,6 @@ export const baseRouter = createTRPCRouter({
     }),
 
 
-
-
-
-
-
     editCell: protectedProcedure
     .input(
         z.object({
@@ -426,6 +408,97 @@ export const baseRouter = createTRPCRouter({
         return cellId;
 
     }),
+
+    addBulkRows: protectedProcedure
+    .input(
+      z.object({
+        tableId: z.number(),
+        rowCount: z.number().default(15000), 
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { tableId, rowCount } = input;
+  
+      const columns = await ctx.db.column.findMany({
+        where: { tableId },
+        select: { id: true },
+      });
+  
+      if (columns.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No columns found for the table.",
+        });
+      }
+  
+      const rows = Array.from({ length: rowCount }, () => ({ tableId }));
+  
+      const createdRows = await ctx.db.$transaction(async (prisma) => {
+        await prisma.row.createMany({
+          data: rows,
+          skipDuplicates: true,
+        });
+  
+        return prisma.row.findMany({
+          where: { tableId },
+          select: { id: true },
+          orderBy: { createdAt: "asc" },
+          take: rowCount,
+        });
+      });
+  
+      const cells = createdRows.flatMap((row) =>
+        columns.map((column) => ({
+          value: "",
+          columnId: column.id,
+          rowId: row.id,
+        }))
+      );
+  
+      await ctx.db.cell.createMany({
+        data: cells,
+        skipDuplicates: true,
+      });
+  
+      const createdCells = await ctx.db.cell.findMany({
+        where: {
+          rowId: { in: createdRows.map((row) => row.id) },
+        },
+        select: { id: true, value: true, rowId: true, columnId: true },
+      });
+  
+      const rowsMap = new Map(
+        createdRows.map((row) => [
+          row.id,
+          {
+            cells: new Map(
+              createdCells
+                .filter((cell) => cell.rowId === row.id)
+                .map((cell) => [
+                  cell.columnId,
+                  { cellId: cell.id, value: cell.value },
+                ])
+            ),
+          },
+        ])
+      );
+  
+      return {
+        rows: Array.from(rowsMap.entries()).map(([id, row]) => ({
+          id,
+          cells: Array.from(row.cells.entries()).map(([columnId, cell]) => ({
+            columnId,
+            cellId: cell.cellId,
+            value: cell.value,
+          })),
+        })),
+      };
+    }),
+  
+  
+  
+
+
 
 
 });

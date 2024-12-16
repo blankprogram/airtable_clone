@@ -1,9 +1,11 @@
 export default function TableHeader({
     isLoading,
     toggleSidebar,
+    addBulkRows,
 }: {
     isLoading: boolean;
     toggleSidebar: () => void;
+    addBulkRows: (count: number) => void;
 }) {
     const buttons = [
         { label: "Views", iconId: "List", style: "text-black" },
@@ -179,6 +181,7 @@ export default function TableHeader({
 
             <button
                 className="text-sm font-light hover:bg-gray-100 px-2 py-1 rounded"
+                onClick={() => addBulkRows(5000)}
 
             >
                 <span>Add 15,000 Rows</span>

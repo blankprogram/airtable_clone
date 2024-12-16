@@ -22,7 +22,7 @@ export default function BaseHeader({
 
 }: {
   baseId: number;
-  tableId: string;
+  tableId: number;
   baseData: Basetype | undefined;
   isLoading: boolean
   refetch: () => void;
@@ -42,7 +42,7 @@ export default function BaseHeader({
   const [newTheme, setNewTheme] = useState<string>(theme);
   const themeColor = newTheme ? `#${newTheme}` : "#107da3";
   const hoverColor = newTheme ? `#${darkenHex(newTheme, 10)}` : "#0e6a8b";
-  const [selectedTable, setTable] = useState<number>(parseInt(tableId, 10));
+  const [selectedTable, setTable] = useState(tableId);
   const { mutateAsync: updateBase } = api.post.updateBase.useMutation();
   const { mutateAsync: createTable } = api.post.createTableForBase.useMutation();
   const tables = localBaseData?.tables ?? [];

@@ -93,7 +93,7 @@ export default function BaseTable({
     }, [data, setRows, setColumns]);
 
 
-    const fetchMoreOnBottomReached = useCallback(()  => {
+    const fetchMoreOnBottomReached = useCallback(() => {
         const container = parentRef.current;
         if (container) {
             const { scrollHeight, scrollTop, clientHeight } = container;
@@ -108,24 +108,11 @@ export default function BaseTable({
         }
     }, [fetchNextPage, hasNextPage, isFetching]);
 
-    const tableData = useMemo(() => {
-        return Array.from(rows.entries()).map(([rowId, row], index) => ({
-            id: rowId,
-            pos: index + 1,
-            cells: row.cells, 
-            ...Object.fromEntries(
-                Array.from(row.cells.entries()).map(([columnId, cell]) => [
-                    columnId.toString(),
-                    cell.value,
-                ])
-            ),
-        }));
-    }, [rows]);
-    
+
 
     const updateData = (rowId: number, columnId: number, value: string) => {
         const cellId = rows.get(rowId)?.cells.get(columnId)?.cellId;
-    
+
         setRows((prev) => {
             const updatedRows = new Map(prev);
             const row = updatedRows.get(rowId);
@@ -137,7 +124,7 @@ export default function BaseTable({
             }
             return updatedRows;
         });
-    
+
         if (cellId && cellId < 0) {
             setPendingEdits((prev) => {
                 const updatedEdits = new Map(prev);
@@ -152,7 +139,21 @@ export default function BaseTable({
             editCellMutation.mutate({ cellId, value });
         }
     };
-    
+
+    const tableData = useMemo(() => {
+        return Array.from(rows.entries()).map(([rowId, row], index) => ({
+            id: rowId,
+            pos: index + 1,
+            cells: row.cells,
+            ...Object.fromEntries(
+                Array.from(row.cells.entries()).map(([columnId, cell]) => [
+                    columnId.toString(),
+                    cell.value,
+                ])
+            ),
+        }));
+    }, [rows]);
+
     const tableColumns = useMemo(() => {
         const baseColumns = [
             {
@@ -164,7 +165,7 @@ export default function BaseTable({
                 size: 50,
             },
         ];
-    
+
         const dynamicColumns = Array.from(columns.entries()).map(([columnId, column]) => ({
             header: column.name,
             accessorKey: columnId.toString(),
@@ -184,7 +185,7 @@ export default function BaseTable({
                     editingCell &&
                     editingCell.rowId === rowId &&
                     editingCell.columnId === columnId;
-    
+
                 return isEditing ? (
                     <input
                         type="text"
@@ -206,11 +207,11 @@ export default function BaseTable({
                                 e.preventDefault();
                                 if (editingCell) {
                                     updateData(editingCell.rowId, editingCell.columnId, editingCell.value);
-    
+
                                     const columnIds = Array.from(columns.keys());
                                     const currentIndex = columnIds.indexOf(editingCell.columnId);
                                     const nextColumnId = columnIds[currentIndex + 1];
-    
+
                                     if (nextColumnId !== undefined) {
                                         const nextCell = row.original.cells.get(nextColumnId);
                                         setEditingCell({
@@ -249,11 +250,11 @@ export default function BaseTable({
                 );
             },
         }));
-    
+
         return [...baseColumns, ...dynamicColumns];
     }, [columns, editingCell, updateData, rows]);
-    
-    
+
+
 
     const table = useReactTable({
         data: tableData,
@@ -289,12 +290,7 @@ export default function BaseTable({
         addColumnMutation.mutate({ tableId, name: `Column ${columns.size + 1}`, type });
     }
 
-
-
     const editCellMutation = api.post.editCell.useMutation();
-
-    
-
 
     const addRowMutation = api.post.addRow.useMutation({
         onMutate: async () => {
@@ -596,11 +592,7 @@ export default function BaseTable({
                     </button>
                 </div>
             )}
-            {isFetching && hasNextPage && (
-                <div className="flex justify-center py-4">
-                    <div className="w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                </div>
-            )}
+
 
         </div>
 
