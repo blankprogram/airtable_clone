@@ -2,7 +2,9 @@
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import BaseHeader from "~/app/_components/BaseHeader";
-import BaseTable, { Sidebar, TableHeader } from "~/app/_components/BaseTable";
+import BaseTable from "~/app/_components/BaseTable";
+import TableHeader from "~/app/_components/BaseTableHeader";
+import Sidebar from "~/app/_components/BaseSidebar";
 import { type RouterOutputs, api } from "~/trpc/react";
 
 export default function Base() {
@@ -12,51 +14,15 @@ export default function Base() {
     { enabled: !!baseId }
   );
 
-  type RowData = Omit<RouterOutputs["post"]["getTableData"]["rows"][number], "id"> & {
-    id: number | string;
-};
+  type RowData = RouterOutputs["post"]["getTableData"]["rows"];
 
+  const [rows, setRows] = useState<RowData>(new Map());
 
-  const [localRows, setLocalRows] = useState<RowData[]>([]); 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
 
-  const addBulkRowsMutation = api.post.addBulkRows.useMutation();
-
-  const handleBulkAddRows = (rowCount: number) => {
-    const tempRows = Array.from({ length: rowCount }).map(() => ({
-      id: `temp-${Date.now()}-${Math.random()}`,
-    }));
-  
-    setLocalRows((prev) => [...prev, ...tempRows]);
-  
-    addBulkRowsMutation.mutate(
-      { tableId: parseInt(tableId, 10), rowCount },
-      {
-        onSuccess: (response) => {
-          if (response.rows) {
-            setLocalRows((prev) =>
-              prev.map((row) =>
-                row.id.toString().startsWith("temp")
-                  ? response.rows.find((newRow) => !prev.some((r) => r.id === newRow.id)) ?? row
-                  : row
-              )
-            );
-          }
-        },
-        onError: () => {
-          setLocalRows((prev) =>
-            prev.filter((row) => !row.id.toString().startsWith("temp"))
-          );
-        },
-      }
-    );
-    
-  };
-  
-  
-
+  // const addBulkRowsMutation = api.post.addBulkRows.useMutation();
 
   return (
     <div className="flex flex-col h-screen bg-[#f7f7f7]">
@@ -71,7 +37,7 @@ export default function Base() {
       </div>
 
       <div className="flex-shrink-0 bg-white border-b border-gray-200 z-10">
-        <TableHeader isLoading={isLoading} toggleSidebar={toggleSidebar} handleBulkAddRows={handleBulkAddRows} />
+        <TableHeader isLoading={isLoading} toggleSidebar={toggleSidebar} />
       </div>
 
       <div className="flex flex-grow overflow-hidden">
@@ -85,13 +51,12 @@ export default function Base() {
           <div className="flex-grow overflow-auto">
             <BaseTable
               tableId={parseInt(tableId, 10)}
-              localRows={localRows}
-              setLocalRows={setLocalRows}
+              rows={rows}
+              setRows={setRows}
             />
           </div>
         </div>
       </div>
     </div>
   );
-}
-
+};
