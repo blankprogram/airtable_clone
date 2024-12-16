@@ -185,10 +185,9 @@ export default function BaseTable({
                     editingCell &&
                     editingCell.rowId === rowId &&
                     editingCell.columnId === columnId;
-
                 return isEditing ? (
                     <input
-                        type="text"
+                        type={column.type}
                         className="w-full px-2 h-full focus:outline-none border-2 border-blue-500"
                         value={editingCell.value || ""}
                         onChange={(e) =>
@@ -253,8 +252,6 @@ export default function BaseTable({
 
         return [...baseColumns, ...dynamicColumns];
     }, [columns, editingCell, updateData, rows]);
-
-
 
     const table = useReactTable({
         data: tableData,
@@ -470,7 +467,6 @@ export default function BaseTable({
             });
         },
     });
-
 
     return (
         <div>
