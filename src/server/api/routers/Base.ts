@@ -164,7 +164,7 @@ export const baseRouter = createTRPCRouter({
       return updatedBase;
     }),
 
-  createTableForBase: protectedProcedure
+    createTableForBase: protectedProcedure
     .input(
       z.object({
         baseId: z.number(),
@@ -172,22 +172,20 @@ export const baseRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const { baseId } = input;
-
+      const { baseId, name } = input;
+  
       const newTable = await ctx.db.$transaction(async (prisma) => {
-        const base = await prisma.base.update({
-          where: { id: baseId },
-          data: { tableCount: { increment: 1 } },
-          select: { tableCount: true },
+        const tableCount = await prisma.table.count({
+          where: { baseId },
         });
 
         const table = await prisma.table.create({
           data: {
-            name: `Table ${base.tableCount}`,
+            name: name ?? `Table ${tableCount + 1}`,
             baseId: baseId,
           },
         });
-
+  
         const column = await prisma.column.create({
           data: {
             name: "Name",
@@ -195,36 +193,34 @@ export const baseRouter = createTRPCRouter({
             tableId: table.id,
           },
         });
-
-
-
         const rows = Array.from({ length: 4 }, () => ({ tableId: table.id }));
         await prisma.row.createMany({ data: rows });
-
+  
         const createdRows = await prisma.row.findMany({
           where: { tableId: table.id },
           select: { id: true },
         });
-
+  
         const cells = createdRows.map((row) => ({
           value: faker.person.firstName(),
           columnId: column.id,
           rowId: row.id,
         }));
-
+  
         await prisma.cell.createMany({ data: cells });
-
+  
         return table;
       });
-
+  
       return newTable;
     }),
+  
     getTableData: protectedProcedure
     .input(
         z.object({
             tableId: z.number(),
-            limit: z.number().min(1).max(100).default(50), // Number of rows per page
-            cursor: z.number().nullish(), // Cursor for pagination
+            limit: z.number(),
+            cursor: z.number().nullish(), 
         })
     )
     .query(async ({ ctx, input }) => {
@@ -244,11 +240,10 @@ export const baseRouter = createTRPCRouter({
             throw new TRPCError({ code: "NOT_FOUND", message: "Table not found" });
         }
 
-        // Fetch rows with cursor-based pagination
         const rows = await ctx.db.row.findMany({
             where: { tableId },
-            take: limit + 1, // Fetch one extra row to determine if there’s more data
-            skip: cursor ? 1 : 0, // Skip the current cursor if present
+            take: limit + 1, 
+            skip: cursor ? 1 : 0, 
             cursor: cursor ? { id: cursor } : undefined,
             include: {
                 cells: {
@@ -259,14 +254,14 @@ export const baseRouter = createTRPCRouter({
                     },
                 },
             },
-            orderBy: { id: 'asc' }, // Ensure a consistent order
+            orderBy: { id: 'asc' }, 
         });
 
 
         let nextCursor: number | undefined = undefined;
         if (rows.length > limit) {
-            const nextItem = rows.pop(); // Remove the extra item from results
-            nextCursor = nextItem?.id; // Set next cursor to the last item's ID
+            const nextItem = rows.pop();
+            nextCursor = nextItem?.id;
         }
 
         return {
@@ -348,7 +343,6 @@ export const baseRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
         const { tableId, name, type } = input;
 
-        // Create the column and fetch rows simultaneously
         const [newColumn, rows] = await Promise.all([
             ctx.db.column.create({
                 data: { tableId, name, type },
@@ -359,23 +353,19 @@ export const baseRouter = createTRPCRouter({
             }),
         ]);
 
-        // Prepare cells for the new column
         const cells = rows.map((row) => ({
             value: "",
             columnId: newColumn.id,
             rowId: row.id,
         }));
 
-        // Batch create cells
         await ctx.db.cell.createMany({ data: cells });
 
-        // Fetch created cells with their IDs
         const createdCells = await ctx.db.cell.findMany({
             where: { columnId: newColumn.id },
             select: { id: true, value: true, rowId: true },
         });
 
-        // Map cells to rowId
         const rowsMap = new Map(
             createdCells.map((cell) => [
                 cell.rowId,
@@ -385,7 +375,7 @@ export const baseRouter = createTRPCRouter({
 
         return {
             id: newColumn.id,
-            rows: rowsMap, // Map of rowId to CellData for the new column
+            rows: rowsMap,
         };
     }),
 

@@ -9,9 +9,66 @@ import {
 import { type RouterOutputs, api } from "~/trpc/react";
 import { FiChevronDown } from "react-icons/fi";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 type RowData = RouterOutputs["post"]["getTableData"]["rows"];
 type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
+
+
+
+export const AddColumnDropdown = ({ onAddColumn }: { onAddColumn: (name: string, type: "TEXT" | "NUMBER") => void }) => {
+    const [columnName, setColumnName] = useState("");
+
+    const handleAddColumn = (type: "TEXT" | "NUMBER") => {
+        const name = columnName.trim() || "New Column";
+        onAddColumn(name, type);
+        setColumnName("");
+    };
+
+    return (
+        <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+                <th
+                    className="px-10 bg-gray-100 border-r border-gray-300 text-gray-500 font-medium text-center hover:bg-gray-200 cursor-pointer"
+                >
+                    <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-lg font-medium">+</span>
+                    </div>
+                </th>
+            </DropdownMenu.Trigger>
+
+            <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                    className="bg-white border p-2 shadow-md rounded"
+                    side="bottom"
+                    align="start"
+                    sideOffset={5}
+                >
+                    <input
+                        type="text"
+                        placeholder="Column Name"
+                        value={columnName}
+                        onChange={(e) => setColumnName(e.target.value)}
+                        className="w-full px-2 py-1 mb-2 border border-gray-300 rounded"
+                    />
+
+                    <DropdownMenu.Item
+                        onClick={() => handleAddColumn("TEXT")}
+                        className="cursor-pointer px-4 py-2 hover:bg-gray-100 rounded"
+                    >
+                        Text
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                        onClick={() => handleAddColumn("NUMBER")}
+                        className="cursor-pointer px-4 py-2 hover:bg-gray-100 rounded"
+                    >
+                        Number
+                    </DropdownMenu.Item>
+                </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+    );
+};
 
 
 export default function BaseTable({
@@ -25,22 +82,7 @@ export default function BaseTable({
 }) {
     const generateTempId = () => -Date.now() + Math.floor(Math.random() * 1000);
 
-
-    const [dropdownVisible, setDropdownVisible] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement | null>(null);
-    const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number }>({
-        top: 0,
-        left: 0,
-    });
-
-
-    const toggleDropdown = (event: React.MouseEvent<HTMLElement>) => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        setDropdownPosition({ top: rect.bottom + window.scrollY, left: rect.left + window.scrollX });
-        setDropdownVisible((prev) => !prev);
-    };
-
-    const fetchSize = 100;
+    const fetchSize = 200;
     const {
         data,
         fetchNextPage,
@@ -73,8 +115,6 @@ export default function BaseTable({
         >
     >(new Map());
 
-
-
     useEffect(() => {
         if (data) {
             const firstPageColumns = data.pages[0]?.columns ?? new Map();
@@ -93,22 +133,20 @@ export default function BaseTable({
     }, [data, setRows, setColumns]);
 
 
-    const fetchMoreOnBottomReached = useCallback(() => {
+    const fetchMore = useCallback(() => {
         const container = parentRef.current;
+    
         if (container) {
             const { scrollHeight, scrollTop, clientHeight } = container;
-
-            if (
-                scrollHeight - scrollTop - clientHeight < 300 &&
-                hasNextPage &&
-                !isFetching
-            ) {
+    
+            const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+    
+            if (scrollPercentage >= 0.8 && hasNextPage && !isFetching) {
                 void fetchNextPage();
             }
         }
     }, [fetchNextPage, hasNextPage, isFetching]);
-
-
+    
 
     const updateData = (rowId: number, columnId: number, value: string) => {
         const cellId = rows.get(rowId)?.cells.get(columnId)?.cellId;
@@ -271,7 +309,7 @@ export default function BaseTable({
         count: rows.size,
         getScrollElement: () => parentRef.current,
         estimateSize: () => 34,
-        overscan: 10,
+        overscan: 20,
     });
 
     const virtualRows = rowVirtualizer.getVirtualItems();
@@ -282,10 +320,14 @@ export default function BaseTable({
             : 0;
 
     const handleAddRow = () => addRowMutation.mutate({ tableId });
-    const handleAddColumn = (type: "TEXT" | "NUMBER") => {
-        setDropdownVisible(false)
-        addColumnMutation.mutate({ tableId, name: `Column ${columns.size + 1}`, type });
-    }
+    const handleAddColumn = (name: string, type: "TEXT" | "NUMBER") => {
+        addColumnMutation.mutate({
+            tableId,
+            name,
+            type,
+        });
+    };
+
 
     const editCellMutation = api.post.editCell.useMutation();
 
@@ -370,7 +412,6 @@ export default function BaseTable({
             });
         },
     });
-
 
     const addColumnMutation = api.post.addColumn.useMutation({
         onMutate: async ({ name, type = "TEXT" }) => {
@@ -471,58 +512,71 @@ export default function BaseTable({
     return (
         <div>
             {isLoading ? (
-                <div className="fixed inset-0 flex flex-col items-center justify-center">
+                <div className="fixed inset-0 flex flex-col items-center justify-center ">
                     <div className="relative w-10 h-10">
                         <div className="absolute inset-0 border-4 border-t-transparent border-l-gray-500 border-r-gray-500 border-b-transparent rounded-full animate-spin"></div>
                     </div>
                     <p className="mt-4 text-gray-600 text-lg font-medium">Loading View</p>
                 </div>
             ) : (
-                <div ref={parentRef} onScroll={() => fetchMoreOnBottomReached()} className="relative h-[1135px] overflow-auto">
+                <div
+                    ref={parentRef}
+                    onScroll={() => fetchMore()}
+                    className="relative h-[1135px] overflow-auto"
+                >
                     <div
-                        className="absolute bg-[#fcfcfc] border-r border-gray-300 min-h-screen"
+                        className="absolute top-0 left-0 bg-[#fcfcfc] border-r border-gray-300 h-full"
                         style={{
                             width: `${(table.getHeaderGroups()?.[0]?.headers?.[0]?.getSize?.() ?? 0) +
-                                (table.getHeaderGroups()?.[0]?.headers?.[1]?.getSize?.() ?? 0) + 1
+                                (table.getHeaderGroups()?.[0]?.headers?.[1]?.getSize?.() ?? 0) +
+                                1
                                 }px`,
                         }}
                     ></div>
 
-                    <div className="absolute bg-[#fbfbfb] border-b border-gray-300 w-full h-[30px]"></div>
+                    <div className="absolute top-0 bg-[#fbfbfb] border-b border-gray-300 w-full h-[30px]"></div>
 
-                    <table className="table-auto text-xs relative">
-                        <thead style={{ height: "30px" }}>
+                    <table className="text-xs relative">
+                        <thead className="h-[30px]">
                             {table.getHeaderGroups().map((headerGroup) => (
                                 <tr key={headerGroup.id} className="border-b border-gray-300">
                                     {headerGroup.headers.map((header, index) => (
                                         <th
                                             key={header.id}
-                                            className={`relative px-2 bg-gray-100 font-normal text-black ${index === 0 ? "text-center" : "text-left border-r border-gray-300"
+                                            className={`relative px-2 bg-gray-100 font-normal text-black ${index === 0
+                                                ? ""
+                                                : "border-r border-gray-300"
                                                 }`}
                                             style={{ width: `${header.getSize()}px` }}
                                         >
-                                            <div className={index === 0 ? "" : "flex items-center justify-between"}>
-                                                {header.isPlaceholder
-                                                    ? null
-                                                    : flexRender(header.column.columnDef.header, header.getContext())}
+                                            <div
+                                                className={
+                                                    index === 0 ? "" : "flex items-center justify-between"
+                                                }
+                                            >
 
-                                                {index > 0 && <FiChevronDown className="text-gray-500" />}
+
+                                                {flexRender(
+                                                    header.column.columnDef.header,
+                                                    header.getContext()
+                                                )}
+
+                                                {index > 0 && (
+                                                    <FiChevronDown className="text-gray-500" />
+                                                )}
                                             </div>
                                             {header.column.getCanResize() && (
                                                 <div
                                                     onMouseDown={header.getResizeHandler()}
                                                     onTouchStart={header.getResizeHandler()}
-                                                    className={`absolute right-0 top-0 h-full w-0.5 bg-blue-500 cursor-col-resize opacity-0 hover:opacity-100`}
+                                                    className="absolute right-0 top-0 h-full w-0.5 bg-blue-500 cursor-col-resize opacity-0 hover:opacity-100"
                                                 />
                                             )}
                                         </th>
                                     ))}
-                                    <th
-                                        className="bg-gray-100 border-b border-l border-r border-gray-300 px-10 cursor-pointer text-gray-500 font-medium text-center"
-                                        onClick={toggleDropdown}
-                                    >
-                                        +
-                                    </th>
+                                    
+                                        <AddColumnDropdown onAddColumn={handleAddColumn} />
+                                  
                                 </tr>
                             ))}
                         </thead>
@@ -530,8 +584,8 @@ export default function BaseTable({
                             <tr style={{ height: `${paddingTop}px` }} aria-hidden="true" />
 
                             {virtualRows.map((virtualRow) => {
-                                const rowIndex = virtualRow.index;
-                                const row = table.getRowModel().rows[rowIndex];
+                                console.log(virtualRows.length)
+                                const row = table.getRowModel().rows[virtualRow.index];
 
                                 if (!row) return null;
 
@@ -540,10 +594,14 @@ export default function BaseTable({
                                         {row.getVisibleCells().map((cell, index) => (
                                             <td
                                                 key={cell.id}
-                                                className={`border-b border-gray-300 ${index === 0 ? "" : "border-r"}`}
+                                                className={`border-b border-gray-300 ${index === 0 ? "" : "border-r"
+                                                    }`}
                                                 style={{ height: "30px" }}
                                             >
-                                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                {flexRender(
+                                                    cell.column.columnDef.cell,
+                                                    cell.getContext()
+                                                )}
                                             </td>
                                         ))}
                                     </tr>
@@ -552,12 +610,18 @@ export default function BaseTable({
 
                             <tr style={{ height: `${paddingBottom}px` }} aria-hidden="true" />
 
-                            <tr className="hover:bg-gray-100 bg-white cursor-pointer" onClick={handleAddRow}>
+                            <tr
+                                className="hover:bg-gray-100 bg-white cursor-pointer"
+                                onClick={handleAddRow}
+                            >
                                 <td className="text-center text-lg border-b border-gray-300">+</td>
                                 {Array.from({ length: columns.size }).map((_, index) => (
                                     <td
                                         key={index}
-                                        className={`border-b border-gray-300 ${index === 0 || index === columns.size - 1 ? "border-r" : ""}`}
+                                        className={`border-b border-gray-300 ${index === 0 || index === columns.size - 1
+                                            ? "border-r"
+                                            : ""
+                                            }`}
                                     ></td>
                                 ))}
                             </tr>
@@ -565,32 +629,6 @@ export default function BaseTable({
                     </table>
                 </div>
             )}
-            {dropdownVisible && (
-                <div
-                    ref={dropdownRef}
-                    className="absolute bg-white border shadow-lg rounded p-2 z-10"
-                    style={{
-                        top: dropdownPosition.top,
-                        left: dropdownPosition.left,
-                    }}
-                >
-                    <button
-                        onClick={() => handleAddColumn("TEXT")}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                    >
-                        Text
-                    </button>
-                    <button
-                        onClick={() => handleAddColumn("NUMBER")}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                    >
-                        Number
-                    </button>
-                </div>
-            )}
-
-
         </div>
-
     );
 }    
