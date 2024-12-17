@@ -5,6 +5,8 @@ import {
     flexRender,
     getCoreRowModel,
     useReactTable,
+    getFilteredRowModel,
+    type Row,
 } from "@tanstack/react-table";
 import { type RouterOutputs, api } from "~/trpc/react";
 import { FiChevronDown } from "react-icons/fi";
@@ -70,7 +72,6 @@ export const AddColumnDropdown = ({ onAddColumn }: { onAddColumn: (name: string,
     );
 };
 
-
 export default function BaseTable({
     tableId,
     rows,
@@ -80,6 +81,7 @@ export default function BaseTable({
     rows: RowData;
     setRows: React.Dispatch<React.SetStateAction<RowData>>;
 }) {
+
     const generateTempId = () => -Date.now() + Math.floor(Math.random() * 1000);
 
     const fetchSize = 200;
@@ -115,6 +117,9 @@ export default function BaseTable({
         >
     >(new Map());
 
+    const [globalFilter, setGlobalFilter] = useState("");
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const searchInputRef = useRef<HTMLInputElement>(null);
     useEffect(() => {
         if (data) {
             const firstPageColumns = data.pages[0]?.columns ?? new Map();
@@ -132,21 +137,53 @@ export default function BaseTable({
         }
     }, [data, setRows, setColumns]);
 
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.key === "f") {
+                e.preventDefault();
+                setIsSearchOpen((prev) => !prev);
+                setTimeout(() => {
+                    if (!isSearchOpen) searchInputRef.current?.focus();
+                }, 0);
+            } else if (e.key === "Escape") {
+                setIsSearchOpen(false);
+                setGlobalFilter("");
+            }
+        };
+    
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [isSearchOpen]);
+    
+    
+    
+    type RowDataType = {
+        id: number;
+        pos: number;
+        cells: Map<number, { cellId: number; value: string }>;
+    };
+    
+
+    const Filter = (row: Row<RowDataType>, columnId: string, value: string): boolean => {
+        const cellValue = row.getValue(columnId);
+        return cellValue?.toString().toLowerCase().includes(value.toLowerCase()) ?? false;
+    };
+
 
     const fetchMore = useCallback(() => {
         const container = parentRef.current;
-    
+
         if (container) {
             const { scrollHeight, scrollTop, clientHeight } = container;
-    
+
             const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
-    
+
             if (scrollPercentage >= 0.8 && hasNextPage && !isFetching) {
                 void fetchNextPage();
             }
         }
     }, [fetchNextPage, hasNextPage, isFetching]);
-    
+
 
     const updateData = (rowId: number, columnId: number, value: string) => {
         const cellId = rows.get(rowId)?.cells.get(columnId)?.cellId;
@@ -218,6 +255,7 @@ export default function BaseTable({
                 };
             }) => {
                 const value = row.original.cells.get(columnId)?.value;
+                const highlight = globalFilter && value?.toString().toLowerCase().includes(globalFilter.toLowerCase());
                 const rowId = row.original.id;
                 const isEditing =
                     editingCell &&
@@ -226,7 +264,7 @@ export default function BaseTable({
                 return isEditing ? (
                     <input
                         type={column.type}
-                        className="w-full px-2 h-full focus:outline-none border-2 border-blue-500"
+                        className="w-full px-2 h-full focus:outline-none border-2 border-blue-500 "
                         value={editingCell.value || ""}
                         onChange={(e) =>
                             setEditingCell((prev) =>
@@ -272,7 +310,7 @@ export default function BaseTable({
                     />
                 ) : (
                     <div
-                        className="px-2 w-full h-full flex items-center cursor-pointer"
+                        className={`px-2 w-full h-full flex items-center cursor-pointer ${highlight ? "bg-yellow-300" : ""}`}
                         onClick={() =>
                             setEditingCell({
                                 cellId: row.original.cells.get(columnId)?.cellId ?? 0,
@@ -294,7 +332,11 @@ export default function BaseTable({
     const table = useReactTable({
         data: tableData,
         columns: tableColumns,
+        globalFilterFn: Filter,
+        state: { globalFilter },
+        onGlobalFilterChange: setGlobalFilter,
         getCoreRowModel: getCoreRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
         defaultColumn: {
             size: 200,
             minSize: 50,
@@ -328,7 +370,6 @@ export default function BaseTable({
         });
     };
 
-
     const editCellMutation = api.post.editCell.useMutation();
 
     const addRowMutation = api.post.addRow.useMutation({
@@ -356,36 +397,27 @@ export default function BaseTable({
             setRows((prev) => {
                 const updatedRows = new Map(prev);
                 const tempRow = updatedRows.get(tempRowId);
-                if (!tempRow) return updatedRows;
+                if (!tempRow) return prev;
+
+                const mergedCells = new Map<number, { cellId: number; value: string }>();
+                tempRow.cells.forEach((localCell, columnId) => {
+                    const serverCell = cells.get(columnId);
+                    mergedCells.set(columnId, {
+                        cellId: serverCell?.cellId ?? localCell.cellId,
+                        value: localCell.value,
+                    });
+                });
 
                 updatedRows.delete(tempRowId);
-
-                const mergedCells = new Map(
-                    Array.from(tempRow.cells.entries()).map(([columnId, localCell]) => {
-                        const serverCell = cells.get(columnId);
-                        return [
-                            columnId,
-                            {
-                                ...localCell,
-                                cellId: serverCell?.cellId ?? localCell.cellId,
-                            },
-                        ];
-                    })
-                );
-
                 updatedRows.set(id, { cells: mergedCells });
                 return updatedRows;
             });
 
-            setEditingCell((prev) => {
-                if (prev && prev.rowId === tempRowId) {
-                    const updatedCell = cells.get(prev.columnId);
-                    return updatedCell
-                        ? { ...prev, rowId: id, cellId: updatedCell.cellId }
-                        : null;
-                }
-                return prev;
-            });
+            setEditingCell((prev) =>
+                prev?.rowId === tempRowId
+                    ? { ...prev, rowId: id, cellId: cells.get(prev.columnId)?.cellId ?? prev.cellId }
+                    : prev
+            );
 
             setPendingEdits((prev) => {
                 const updatedEdits = new Map(prev);
@@ -416,6 +448,7 @@ export default function BaseTable({
     const addColumnMutation = api.post.addColumn.useMutation({
         onMutate: async ({ name, type = "TEXT" }) => {
             const tempColumnId = generateTempId();
+
             setColumns((prev) => {
                 const updatedColumns = new Map(prev);
                 updatedColumns.set(tempColumnId, { name, type });
@@ -432,63 +465,64 @@ export default function BaseTable({
 
             return { tempColumnId };
         },
-        onSuccess: ({ id, rows: updatedCells }, _, context) => {
+        onSuccess: ({ columns: newColumnMap, rows: updatedRows }, _, context) => {
             if (!context) return;
+
             const { tempColumnId } = context;
+
+            const newColumnId = Array.from(newColumnMap.keys())[0];
+            if (!newColumnId) return;
 
             setColumns((prev) => {
                 const updatedColumns = new Map(prev);
-                const tempColumn = updatedColumns.get(tempColumnId);
-                if (tempColumn) {
-                    updatedColumns.delete(tempColumnId);
-                    updatedColumns.set(id, tempColumn);
-                }
+                updatedColumns.delete(tempColumnId);
+                updatedColumns.set(newColumnId, newColumnMap.get(newColumnId)!);
                 return updatedColumns;
             });
-
             setRows((prev) => {
-                const updatedRows = new Map(prev);
-                updatedRows.forEach((row, rowId) => {
-                    const serverCell = updatedCells.get(rowId);
-                    if (serverCell) {
-                        const localCell = row.cells.get(tempColumnId);
-                        if (localCell) {
-                            row.cells.set(id, {
-                                ...localCell,
-                                cellId: serverCell.cellId,
-                            });
-                            row.cells.delete(tempColumnId);
-                        }
+                const updatedRowsLocal = new Map(prev);
+                updatedRowsLocal.forEach((row, rowId) => {
+                    const tempCell = row.cells.get(tempColumnId);
+                    const serverCell = updatedRows.get(rowId)?.cells.get(newColumnId);
+                    if (tempCell && serverCell?.cellId) {
+                        row.cells.set(newColumnId, { ...tempCell, cellId: serverCell.cellId });
+                        row.cells.delete(tempColumnId);
                     }
                 });
-                return updatedRows;
+                return updatedRowsLocal;
             });
 
             setEditingCell((prev) => {
-                if (prev && prev.columnId === tempColumnId) {
-                    const updatedCell = updatedCells.get(prev.rowId);
-                    return updatedCell
-                        ? { ...prev, columnId: id, cellId: updatedCell.cellId }
-                        : null;
-                }
-                return prev;
+                if (!prev || prev.columnId !== tempColumnId) return prev;
+
+                const serverCell = updatedRows.get(prev.rowId)?.cells.get(newColumnId);
+                return serverCell?.cellId
+                    ? { ...prev, columnId: newColumnId, cellId: serverCell.cellId }
+                    : null;
             });
+
 
             setPendingEdits((prev) => {
                 const updatedEdits = new Map(prev);
-                updatedEdits.forEach((rowEdits, rowId) => {
-                    const cellEdit = rowEdits.get(tempColumnId);
-                    if (cellEdit) {
-                        const newCellId = updatedCells.get(rowId)?.cellId;
-                        if (newCellId) {
-                            editCellMutation.mutate({ cellId: newCellId, value: cellEdit.value });
-                        }
+
+                for (const [rowId, rowEdits] of updatedEdits.entries()) {
+                    if (!rowEdits.has(tempColumnId)) continue;
+
+                    const newCellId = updatedRows.get(rowId)?.cells.get(newColumnId)?.cellId;
+
+                    if (newCellId) {
+                        const { value } = rowEdits.get(tempColumnId)!;
+                        editCellMutation.mutate({ cellId: newCellId, value });
                         rowEdits.delete(tempColumnId);
+
                     }
-                });
+                }
+
                 return updatedEdits;
             });
+
         },
+
         onError: (_, __, context) => {
             if (!context) return;
             const { tempColumnId } = context;
@@ -511,6 +545,7 @@ export default function BaseTable({
 
     return (
         <div>
+
             {isLoading ? (
                 <div className="fixed inset-0 flex flex-col items-center justify-center ">
                     <div className="relative w-10 h-10">
@@ -519,11 +554,33 @@ export default function BaseTable({
                     <p className="mt-4 text-gray-600 text-lg font-medium">Loading View</p>
                 </div>
             ) : (
+
                 <div
                     ref={parentRef}
                     onScroll={() => fetchMore()}
                     className="relative h-[1135px] overflow-auto"
                 >
+                    {isSearchOpen && (
+                        <div className="fixed top-2 right-2 z-50">
+                            <input
+                                ref={searchInputRef}
+                                value={globalFilter}
+                                onChange={(e) => setGlobalFilter(e.target.value)}
+                                className=" px-1 borderrounded "
+                                placeholder="Search..."
+                            />
+                            <button
+                                onClick={() => {
+                                    setGlobalFilter("");
+                                    setIsSearchOpen(false);
+                                }}
+                                className="ml-2 px-1 bg-red-500 rounded"
+                            >
+                                x
+                            </button>
+                        </div>
+                    )}
+
                     <div
                         className="absolute top-0 left-0 bg-[#fcfcfc] border-r border-gray-300 h-full"
                         style={{
@@ -574,9 +631,9 @@ export default function BaseTable({
                                             )}
                                         </th>
                                     ))}
-                                    
-                                        <AddColumnDropdown onAddColumn={handleAddColumn} />
-                                  
+
+                                    <AddColumnDropdown onAddColumn={handleAddColumn} />
+
                                 </tr>
                             ))}
                         </thead>

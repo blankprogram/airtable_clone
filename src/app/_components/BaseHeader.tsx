@@ -6,7 +6,7 @@ import { SketchPicker } from "react-color";
 import { useSession } from "next-auth/react";
 import { type inferRouterOutputs } from "@trpc/server";
 import { type AppRouter } from "~/server/api/root";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { api } from "~/trpc/react";
 

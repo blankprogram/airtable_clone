@@ -164,7 +164,7 @@ export const baseRouter = createTRPCRouter({
       return updatedBase;
     }),
 
-    createTableForBase: protectedProcedure
+  createTableForBase: protectedProcedure
     .input(
       z.object({
         baseId: z.number(),
@@ -173,7 +173,7 @@ export const baseRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { baseId, name } = input;
-  
+
       const newTable = await ctx.db.$transaction(async (prisma) => {
         const tableCount = await prisma.table.count({
           where: { baseId },
@@ -185,7 +185,7 @@ export const baseRouter = createTRPCRouter({
             baseId: baseId,
           },
         });
-  
+
         const column = await prisma.column.create({
           data: {
             name: "Name",
@@ -195,248 +195,237 @@ export const baseRouter = createTRPCRouter({
         });
         const rows = Array.from({ length: 4 }, () => ({ tableId: table.id }));
         await prisma.row.createMany({ data: rows });
-  
+
         const createdRows = await prisma.row.findMany({
           where: { tableId: table.id },
           select: { id: true },
         });
-  
+
         const cells = createdRows.map((row) => ({
           value: faker.person.firstName(),
           columnId: column.id,
           rowId: row.id,
         }));
-  
+
         await prisma.cell.createMany({ data: cells });
-  
+
         return table;
       });
-  
+
       return newTable;
     }),
-  
-    getTableData: protectedProcedure
-    .input(
-        z.object({
-            tableId: z.number(),
-            limit: z.number(),
-            cursor: z.number().nullish(), 
-        })
-    )
-    .query(async ({ ctx, input }) => {
-        const { tableId, limit, cursor } = input;
 
-        // Fetch the table structure (columns)
-        const table = await ctx.db.table.findUnique({
-            where: { id: tableId },
-            include: {
-                columns: {
-                    select: { id: true, name: true, type: true },
-                },
-            },
-        });
-
-        if (!table) {
-            throw new TRPCError({ code: "NOT_FOUND", message: "Table not found" });
-        }
-
-        const rows = await ctx.db.row.findMany({
-            where: { tableId },
-            take: limit + 1, 
-            skip: cursor ? 1 : 0, 
-            cursor: cursor ? { id: cursor } : undefined,
-            include: {
-                cells: {
-                    select: {
-                        id: true,
-                        value: true,
-                        columnId: true,
-                    },
-                },
-            },
-            orderBy: { id: 'asc' }, 
-        });
-
-
-        let nextCursor: number | undefined = undefined;
-        if (rows.length > limit) {
-            const nextItem = rows.pop();
-            nextCursor = nextItem?.id;
-        }
-
-        return {
-            columns: new Map(
-                table.columns.map((column) => [
-                    column.id,
-                    { name: column.name, type: column.type as 'TEXT' | 'NUMBER' },
-                ])
-            ),
-            rows: new Map(
-                rows.map((row) => [
-                    row.id,
-                    {
-                        cells: new Map(
-                            row.cells.map((cell) => [
-                                cell.columnId,
-                                { cellId: cell.id, value: cell.value },
-                            ])
-                        ),
-                    },
-                ])
-            ),
-            nextCursor
-        };
-    }),
-
-    addRow: protectedProcedure
-    .input(z.object({ tableId: z.number() }))
-    .mutation(async ({ ctx, input }) => {
-        const { tableId } = input;
-
-        // Create the row and fetch columns simultaneously
-        const [newRow, columns] = await Promise.all([
-            ctx.db.row.create({ data: { tableId } }),
-            ctx.db.column.findMany({
-                where: { tableId },
-                select: { id: true },
-            }),
-        ]);
-
-        // Prepare cells for the new row
-        const cells = columns.map((column) => ({
-            value: "",
-            columnId: column.id,
-            rowId: newRow.id,
-        }));
-
-        // Batch create cells
-        await ctx.db.cell.createMany({ data: cells });
-
-        // Fetch created cells with their IDs
-        const createdCells = await ctx.db.cell.findMany({
-            where: { rowId: newRow.id },
-            select: { id: true, value: true, columnId: true },
-        });
-
-        // Map cells to columnId
-        const cellsMap = new Map(
-            createdCells.map((cell) => [
-                cell.columnId,
-                { cellId: cell.id, value: cell.value },
-            ])
-        );
-
-        return {
-            id: newRow.id,
-            cells: cellsMap, // Map of columnId to CellData
-        };
-    }),
-
-    addColumn: protectedProcedure
-    .input(
-        z.object({
-            tableId: z.number(),
-            name: z.string(),
-            type: z.enum(["TEXT", "NUMBER"]).default("TEXT"),
-        })
-    )
-    .mutation(async ({ ctx, input }) => {
-        const { tableId, name, type } = input;
-
-        const [newColumn, rows] = await Promise.all([
-            ctx.db.column.create({
-                data: { tableId, name, type },
-            }),
-            ctx.db.row.findMany({
-                where: { tableId },
-                select: { id: true },
-            }),
-        ]);
-
-        const cells = rows.map((row) => ({
-            value: "",
-            columnId: newColumn.id,
-            rowId: row.id,
-        }));
-
-        await ctx.db.cell.createMany({ data: cells });
-
-        const createdCells = await ctx.db.cell.findMany({
-            where: { columnId: newColumn.id },
-            select: { id: true, value: true, rowId: true },
-        });
-
-        const rowsMap = new Map(
-            createdCells.map((cell) => [
-                cell.rowId,
-                { cellId: cell.id, value: cell.value },
-            ])
-        );
-
-        return {
-            id: newColumn.id,
-            rows: rowsMap,
-        };
-    }),
-
-
-    editCell: protectedProcedure
-    .input(
-        z.object({
-            cellId: z.number(),
-            value: z.string(),
-        })
-    )
-    .mutation(async ({ ctx, input }) => {
-        const { cellId, value } = input;
-
-        await ctx.db.cell.update({
-            where: { id: cellId },
-            data: { value },
-        });
-
-        return cellId;
-
-    }),
-
-    addBulkRows: protectedProcedure
+  getTableData: protectedProcedure
     .input(
       z.object({
         tableId: z.number(),
-        rowCount: z.number().default(15000), 
+        limit: z.number(),
+        cursor: z.number().nullish(),
       })
     )
+    .query(async ({ ctx, input }) => {
+      const { tableId, limit, cursor } = input;
+
+      const table = await ctx.db.table.findUnique({
+        where: { id: tableId },
+        include: {
+          columns: {
+            select: { id: true, name: true, type: true },
+          },
+        },
+      });
+
+      if (!table) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Table not found" });
+      }
+
+      const rows = await ctx.db.row.findMany({
+        where: { tableId },
+        take: limit + 1,
+        skip: cursor ? 1 : 0,
+        cursor: cursor ? { id: cursor } : undefined,
+        include: {
+          cells: {
+            select: {
+              id: true,
+              value: true,
+              columnId: true,
+            },
+          },
+        },
+        orderBy: { id: 'asc' },
+      });
+
+
+      let nextCursor: number | undefined = undefined;
+      if (rows.length > limit) {
+        const nextItem = rows.pop();
+        nextCursor = nextItem?.id;
+      }
+
+      return {
+        columns: new Map(
+          table.columns.map((column) => [
+            column.id,
+            { name: column.name, type: column.type as 'TEXT' | 'NUMBER' },
+          ])
+        ),
+        rows: new Map(
+          rows.map((row) => [
+            row.id,
+            {
+              cells: new Map(
+                row.cells.map((cell) => [
+                  cell.columnId,
+                  { cellId: cell.id, value: cell.value },
+                ])
+              ),
+            },
+          ])
+        ),
+        nextCursor
+      };
+    }),
+
+  addRow: protectedProcedure
+    .input(z.object({ tableId: z.number() }))
     .mutation(async ({ ctx, input }) => {
-      const { tableId, rowCount } = input;
-  
+      const { tableId } = input;
+
       const columns = await ctx.db.column.findMany({
         where: { tableId },
         select: { id: true },
       });
-  
-      if (columns.length === 0) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "No columns found for the table.",
+
+      const result = await ctx.db.$transaction(async (prisma) => {
+        const newRow = await prisma.row.create({
+          data: { tableId },
         });
-      }
+
+        const cellsData = columns.map((column) => ({
+          value: "",
+          columnId: column.id,
+          rowId: newRow.id,
+        }));
+
+        await prisma.cell.createMany({ data: cellsData });
+
+        const createdCells = await prisma.cell.findMany({
+          where: { rowId: newRow.id },
+          select: { id: true, columnId: true, value: true },
+        });
+
+        const cellsMap = new Map(
+          createdCells.map((cell) => [
+            cell.columnId,
+            { cellId: cell.id },
+          ])
+        );
+
+        return { id: newRow.id, cells: cellsMap };
+      });
+
+      return result;
+    }),
+
+
+    addColumn: protectedProcedure
+    .input(
+      z.object({
+        tableId: z.number(),
+        name: z.string(),
+        type: z.enum(["TEXT", "NUMBER"]).default("TEXT"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { tableId, name, type } = input;
   
-      const rows = Array.from({ length: rowCount }, () => ({ tableId }));
+      const newColumn = await ctx.db.column.create({
+        data: { tableId, name, type },
+      });
   
+      const rows = await ctx.db.row.findMany({
+        where: { tableId },
+        select: { id: true },
+      });
+  
+      const cellsData = rows.map((row) => ({
+        value: "",
+        columnId: newColumn.id,
+        rowId: row.id,
+      }));
+  
+      await ctx.db.cell.createMany({ data: cellsData });
+  
+      const createdCells = await ctx.db.cell.findMany({
+        where: { columnId: newColumn.id },
+        select: { id: true, rowId: true },
+      });
+  
+      const updatedRows = new Map(
+        createdCells.map((cell) => [
+          cell.rowId,
+          {
+            cells: new Map([[newColumn.id, { cellId: cell.id }]]),
+          },
+        ])
+      );
+  
+      const columnMap = new Map([[newColumn.id, { name, type }]]);
+  
+      return {
+        columns: columnMap,
+        rows: updatedRows,
+      };
+    }),
+  
+  
+  editCell: protectedProcedure
+    .input(
+      z.object({
+        cellId: z.number(),
+        value: z.string(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { cellId, value } = input;
+
+      await ctx.db.cell.update({
+        where: { id: cellId },
+        data: { value },
+      });
+
+      return cellId;
+
+    }),
+
+  addBulkRows: protectedProcedure
+    .input(
+      z.object({
+        tableId: z.number(),
+        rowCount: z.number().default(15000),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { tableId, rowCount } = input;
+
+      const columns = await ctx.db.column.findMany({
+        where: { tableId },
+        select: { id: true },
+      });
+
+
+      const rowsData = Array.from({ length: rowCount }, () => ({ tableId }));
       const createdRows = await ctx.db.$transaction(async (prisma) => {
-        await prisma.row.createMany({
-          data: rows,
-          skipDuplicates: true,
-        });
-  
+        await prisma.row.createMany({ data: rowsData });
+
         return prisma.row.findMany({
           where: { tableId },
           select: { id: true },
-          orderBy: { createdAt: "asc" },
           take: rowCount,
         });
       });
-  
+
       const cells = createdRows.flatMap((row) =>
         columns.map((column) => ({
           value: "",
@@ -444,19 +433,16 @@ export const baseRouter = createTRPCRouter({
           rowId: row.id,
         }))
       );
-  
-      await ctx.db.cell.createMany({
-        data: cells,
-        skipDuplicates: true,
-      });
-  
+
+      await ctx.db.cell.createMany({ data: cells, skipDuplicates: true });
+
       const createdCells = await ctx.db.cell.findMany({
         where: {
           rowId: { in: createdRows.map((row) => row.id) },
         },
         select: { id: true, value: true, rowId: true, columnId: true },
       });
-  
+
       const rowsMap = new Map(
         createdRows.map((row) => [
           row.id,
@@ -472,23 +458,11 @@ export const baseRouter = createTRPCRouter({
           },
         ])
       );
-  
+
       return {
-        rows: Array.from(rowsMap.entries()).map(([id, row]) => ({
-          id,
-          cells: Array.from(row.cells.entries()).map(([columnId, cell]) => ({
-            columnId,
-            cellId: cell.cellId,
-            value: cell.value,
-          })),
-        })),
+        rows: rowsMap,
       };
     }),
-  
-  
-  
-
-
 
 
 });

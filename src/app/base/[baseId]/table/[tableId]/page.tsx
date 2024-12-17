@@ -32,7 +32,6 @@ const addBulkRows = (count: number) => {
   const tempRows = new Map<number, { cells: Map<number, { cellId: number; value: string }> }>();
   const currentTime = Date.now();
 
-  // Generate temporary rows
   for (let i = 0; i < count; i++) {
     const tempId = -(currentTime + i);
     tempRows.set(tempId, { cells: new Map<number, { cellId: number; value: string }>() });
@@ -51,12 +50,12 @@ const addBulkRows = (count: number) => {
           const updatedRows = new Map(prevRows);
   
           tempRows.forEach((_, tempId) => updatedRows.delete(tempId));
-
-          data.rows.forEach((row: { id: number; cells: { columnId: number; cellId: number; value: string }[] }) => {
-            const cellsMap = new Map<number, { cellId: number; value: string }>(
-              row.cells.map((cell) => [cell.columnId, { cellId: cell.cellId, value: cell.value }])
-            );
-            updatedRows.set(row.id, { cells: cellsMap });
+          const rowsMap = data.rows as Map<
+            number,
+            { cells: Map<number, { cellId: number; value: string }> }
+          >;
+          rowsMap.forEach((rowData, rowId) => {
+            updatedRows.set(rowId, { cells: rowData.cells });
           });
   
           return updatedRows;
@@ -66,6 +65,7 @@ const addBulkRows = (count: number) => {
         setRows((prevRows) => {
           const rolledBackRows = new Map(prevRows);
   
+
           tempRows.forEach((_, tempId) => rolledBackRows.delete(tempId));
   
           return rolledBackRows;
@@ -73,6 +73,8 @@ const addBulkRows = (count: number) => {
       },
     }
   );
+  
+  
   
 };
 
