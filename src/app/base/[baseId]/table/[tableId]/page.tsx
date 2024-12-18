@@ -6,6 +6,7 @@ import BaseTable from "~/app/_components/BaseTable";
 import TableHeader from "~/app/_components/BaseTableHeader";
 import Sidebar from "~/app/_components/BaseSidebar";
 import { type RouterOutputs, api } from "~/trpc/react";
+import { type SortingState } from "@tanstack/react-table";
 
 export default function Base() {
   const { baseId: baseIdString, tableId: tableIdString } = useParams<{ baseId: string; tableId: string }>();
@@ -19,8 +20,12 @@ export default function Base() {
   );
 
   type RowData = RouterOutputs["post"]["getTableData"]["rows"];
+  type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
+  
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   const [rows, setRows] = useState<RowData>(new Map());
+  const [columns, setColumns] = useState<ColumnData>(new Map());
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -28,6 +33,9 @@ export default function Base() {
 
   const addBulkRowsMutation = api.post.addBulkRows.useMutation();
 
+
+
+  
 const addBulkRows = (count: number) => {
   const tempRows = new Map<number, { cells: Map<number, { cellId: number; value: string }> }>();
   const currentTime = Date.now();
@@ -87,11 +95,13 @@ const addBulkRows = (count: number) => {
           baseData={baseData}
           isLoading={isLoading}
           refetch={refetch}
+
         />
       </div>
 
       <div className="flex-shrink-0 bg-white border-b border-gray-200 z-10">
-        <TableHeader isLoading={isLoading} toggleSidebar={toggleSidebar} addBulkRows={addBulkRows} />
+        <TableHeader isLoading={isLoading} toggleSidebar={toggleSidebar} addBulkRows={addBulkRows}  sorting={sorting} columns={columns}
+  setSorting={setSorting}/>
       </div>
 
       <div className="flex flex-grow ">
@@ -107,6 +117,10 @@ const addBulkRows = (count: number) => {
             tableId={tableId}
             rows={rows}
             setRows={setRows}
+            columns={columns}
+            setColumns={setColumns}
+            sorting={sorting}
+            setSorting={setSorting}
           />
 
         </div>

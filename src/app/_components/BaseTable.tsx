@@ -7,6 +7,8 @@ import {
     useReactTable,
     getFilteredRowModel,
     type Row,
+    type SortingState,
+    getSortedRowModel,
 } from "@tanstack/react-table";
 import { type RouterOutputs, api } from "~/trpc/react";
 import { FiChevronDown } from "react-icons/fi";
@@ -76,11 +78,21 @@ export default function BaseTable({
     tableId,
     rows,
     setRows,
+    columns,
+    setColumns,
+    sorting,
+    setSorting,
 }: {
     tableId: number;
     rows: RowData;
     setRows: React.Dispatch<React.SetStateAction<RowData>>;
+    columns: ColumnData;
+    setColumns: React.Dispatch<React.SetStateAction<ColumnData>>;
+    sorting: SortingState;
+    setSorting: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
 }) {
+
+
 
     const generateTempId = () => -Date.now() + Math.floor(Math.random() * 1000);
 
@@ -100,8 +112,6 @@ export default function BaseTable({
             getNextPageParam: (lastPage) => lastPage.nextCursor,
         }
     );
-
-    const [columns, setColumns] = useState<ColumnData>(new Map());
 
     const [editingCell, setEditingCell] = useState<{
         cellId: number;
@@ -150,19 +160,19 @@ export default function BaseTable({
                 setGlobalFilter("");
             }
         };
-    
+
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [isSearchOpen]);
-    
-    
-    
+
+
+
     type RowDataType = {
         id: number;
         pos: number;
         cells: Map<number, { cellId: number; value: string }>;
     };
-    
+
 
     const Filter = (row: Row<RowDataType>, columnId: string, value: string): boolean => {
         const cellValue = row.getValue(columnId);
@@ -328,22 +338,26 @@ export default function BaseTable({
 
         return [...baseColumns, ...dynamicColumns];
     }, [columns, editingCell, updateData, rows]);
-
     const table = useReactTable({
         data: tableData,
         columns: tableColumns,
         globalFilterFn: Filter,
-        state: { globalFilter },
-        onGlobalFilterChange: setGlobalFilter,
+        state: {
+            globalFilter,
+            sorting,
+        },
+        onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
+        getSortedRowModel: getSortedRowModel(),
         defaultColumn: {
             size: 200,
             minSize: 50,
             maxSize: 500,
-            enableResizing: true,
+
         },
     });
+
 
     const parentRef = useRef<HTMLDivElement>(null);
 
@@ -561,25 +575,26 @@ export default function BaseTable({
                     className="relative h-[1135px] overflow-auto"
                 >
                     {isSearchOpen && (
-                        <div className="fixed top-2 right-2 z-50">
+                        <div className="text-sm absolute top-2 right-2 z-50">
                             <input
                                 ref={searchInputRef}
                                 value={globalFilter}
                                 onChange={(e) => setGlobalFilter(e.target.value)}
-                                className=" px-1 borderrounded "
-                                placeholder="Search..."
+                                className="px-2 py-1 border rounded-xl"
+                                placeholder="Search"
                             />
                             <button
                                 onClick={() => {
                                     setGlobalFilter("");
                                     setIsSearchOpen(false);
                                 }}
-                                className="ml-2 px-1 bg-red-500 rounded"
+                                className="ml-2 px-2 bg-gray-500 text-white rounded"
                             >
-                                x
+                                ×
                             </button>
                         </div>
                     )}
+
 
                     <div
                         className="absolute top-0 left-0 bg-[#fcfcfc] border-r border-gray-300 h-full"
@@ -641,7 +656,6 @@ export default function BaseTable({
                             <tr style={{ height: `${paddingTop}px` }} aria-hidden="true" />
 
                             {virtualRows.map((virtualRow) => {
-                                console.log(virtualRows.length)
                                 const row = table.getRowModel().rows[virtualRow.index];
 
                                 if (!row) return null;
