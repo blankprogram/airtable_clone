@@ -1,6 +1,6 @@
 "use client";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import BaseHeader from "~/app/_components/BaseHeader";
 import BaseTable from "~/app/_components/BaseTable";
 import TableHeader from "~/app/_components/BaseTableHeader";
@@ -21,6 +21,9 @@ export default function Base() {
 
   type RowData = RouterOutputs["post"]["getTableData"]["rows"];
   type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
+
+
+  const [columnVisibility, setVisibility] = useState<Record<string, boolean>>({});
   
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -33,58 +36,65 @@ export default function Base() {
 
   const addBulkRowsMutation = api.post.addBulkRows.useMutation();
 
-
-
-  
-const addBulkRows = (count: number) => {
-  const tempRows = new Map<number, { cells: Map<number, { cellId: number; value: string }> }>();
-  const currentTime = Date.now();
-
-  for (let i = 0; i < count; i++) {
-    const tempId = -(currentTime + i);
-    tempRows.set(tempId, { cells: new Map<number, { cellId: number; value: string }>() });
-  }
-
-  setRows((prevRows) => new Map<number, { cells: Map<number, { cellId: number; value: string }> }>([
-    ...prevRows,
-    ...tempRows,
-  ]));
-
-  addBulkRowsMutation.mutate(
-    { tableId, rowCount: count },
-    {
-      onSuccess: (data) => {
-        setRows((prevRows) => {
-          const updatedRows = new Map(prevRows);
-  
-          tempRows.forEach((_, tempId) => updatedRows.delete(tempId));
-          const rowsMap = data.rows as Map<
-            number,
-            { cells: Map<number, { cellId: number; value: string }> }
-          >;
-          rowsMap.forEach((rowData, rowId) => {
-            updatedRows.set(rowId, { cells: rowData.cells });
-          });
-  
-          return updatedRows;
-        });
-      },
-      onError: () => {
-        setRows((prevRows) => {
-          const rolledBackRows = new Map(prevRows);
-  
-
-          tempRows.forEach((_, tempId) => rolledBackRows.delete(tempId));
-  
-          return rolledBackRows;
-        });
-      },
+  useEffect(() => {
+    if (columns.size > 0 && Object.keys(columnVisibility).length === 0) {
+      const initialVisibility = Object.fromEntries(
+        Array.from(columns.keys()).map((colId) => [colId.toString(), true])
+      );
+      setVisibility(initialVisibility);
     }
-  );
-  
-  
-  
-};
+  }, [columns, columnVisibility]);
+
+
+  const addBulkRows = (count: number) => {
+    const tempRows = new Map<number, { cells: Map<number, { cellId: number; value: string }> }>();
+    const currentTime = Date.now();
+
+    for (let i = 0; i < count; i++) {
+      const tempId = -(currentTime + i);
+      tempRows.set(tempId, { cells: new Map<number, { cellId: number; value: string }>() });
+    }
+
+    setRows((prevRows) => new Map<number, { cells: Map<number, { cellId: number; value: string }> }>([
+      ...prevRows,
+      ...tempRows,
+    ]));
+
+    addBulkRowsMutation.mutate(
+      { tableId, rowCount: count },
+      {
+        onSuccess: (data) => {
+          setRows((prevRows) => {
+            const updatedRows = new Map(prevRows);
+
+            tempRows.forEach((_, tempId) => updatedRows.delete(tempId));
+            const rowsMap = data.rows as Map<
+              number,
+              { cells: Map<number, { cellId: number; value: string }> }
+            >;
+            rowsMap.forEach((rowData, rowId) => {
+              updatedRows.set(rowId, { cells: rowData.cells });
+            });
+
+            return updatedRows;
+          });
+        },
+        onError: () => {
+          setRows((prevRows) => {
+            const rolledBackRows = new Map(prevRows);
+
+
+            tempRows.forEach((_, tempId) => rolledBackRows.delete(tempId));
+
+            return rolledBackRows;
+          });
+        },
+      }
+    );
+
+
+
+  };
 
   return (
     <div className="flex flex-col h-screen bg-[#f7f7f7]">
@@ -100,8 +110,16 @@ const addBulkRows = (count: number) => {
       </div>
 
       <div className="flex-shrink-0 bg-white border-b border-gray-200 z-10">
-        <TableHeader isLoading={isLoading} toggleSidebar={toggleSidebar} addBulkRows={addBulkRows}  sorting={sorting} columns={columns}
-  setSorting={setSorting}/>
+        <TableHeader
+          isLoading={isLoading}
+          toggleSidebar={toggleSidebar}
+          addBulkRows={addBulkRows}
+          sorting={sorting}
+          columns={columns}
+          setSorting={setSorting} 
+          columnVisibility={columnVisibility}
+          setVisibility={setVisibility}
+          />
       </div>
 
       <div className="flex flex-grow ">
@@ -121,6 +139,8 @@ const addBulkRows = (count: number) => {
             setColumns={setColumns}
             sorting={sorting}
             setSorting={setSorting}
+            columnVisibility={columnVisibility}
+            setColumnVisibility={setVisibility}
           />
 
         </div>

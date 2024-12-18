@@ -82,6 +82,8 @@ export default function BaseTable({
     setColumns,
     sorting,
     setSorting,
+    columnVisibility,
+    setColumnVisibility,
 }: {
     tableId: number;
     rows: RowData;
@@ -90,6 +92,8 @@ export default function BaseTable({
     setColumns: React.Dispatch<React.SetStateAction<ColumnData>>;
     sorting: SortingState;
     setSorting: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
+    columnVisibility: Record<string, boolean>;
+    setColumnVisibility: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
 
 
@@ -340,13 +344,14 @@ export default function BaseTable({
     }, [columns, editingCell, updateData, rows]);
     const table = useReactTable({
         data: tableData,
-        columns: tableColumns,
+        columns: tableColumns, // All columns
         globalFilterFn: Filter,
         state: {
             globalFilter,
             sorting,
+            columnVisibility, // Integrate visibility state
         },
-        onSortingChange: setSorting,
+        onColumnVisibilityChange: setColumnVisibility, // Handle visibility updates
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getSortedRowModel: getSortedRowModel(),
@@ -354,9 +359,9 @@ export default function BaseTable({
             size: 200,
             minSize: 50,
             maxSize: 500,
-
         },
     });
+
 
 
     const parentRef = useRef<HTMLDivElement>(null);
@@ -556,7 +561,7 @@ export default function BaseTable({
             });
         },
     });
-
+    const visibleColumnCount = table.getVisibleLeafColumns().length;
     return (
         <div>
 
@@ -657,7 +662,7 @@ export default function BaseTable({
 
                             {virtualRows.map((virtualRow) => {
                                 const row = table.getRowModel().rows[virtualRow.index];
-
+                                const visibleColumnCount = table.getVisibleLeafColumns().length;
                                 if (!row) return null;
 
                                 return (
@@ -686,12 +691,12 @@ export default function BaseTable({
                                 onClick={handleAddRow}
                             >
                                 <td className="text-center text-lg border-b border-gray-300">+</td>
-                                {Array.from({ length: columns.size }).map((_, index) => (
+                                {Array.from({ length: visibleColumnCount - 1 }).map((_, colIndex) => (
                                     <td
-                                        key={index}
-                                        className={`border-b border-gray-300 ${index === 0 || index === columns.size - 1
-                                            ? "border-r"
-                                            : ""
+                                        key={colIndex}
+                                        className={`border-b border-gray-300 ${colIndex === 0 || colIndex === visibleColumnCount - 2
+                                                ? "border-r"
+                                                : ""
                                             }`}
                                     ></td>
                                 ))}
