@@ -54,7 +54,6 @@ export default function Base() {
     }
   );
 
-  console.log(views.find((view) => view.id === currentViewId))
 
   useEffect(() => {
     if (!data) return;
