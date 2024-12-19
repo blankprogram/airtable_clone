@@ -6,7 +6,7 @@ import BaseTable from "~/app/_components/BaseTable";
 import TableHeader from "~/app/_components/BaseTableHeader";
 import Sidebar from "~/app/_components/BaseSidebar";
 import { type RouterOutputs, api } from "~/trpc/react";
-import { type SortingState } from "@tanstack/react-table";
+import { type ColumnFiltersState, type SortingState } from "~/app/_components/tableTypes";
 
 export default function Base() {
   const { baseId: baseIdString, tableId: tableIdString } = useParams<{ baseId: string; tableId: string }>();
@@ -26,6 +26,7 @@ export default function Base() {
   const [columnVisibility, setVisibility] = useState<Record<string, boolean>>({});
   
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [filter, setFilter] = useState<ColumnFiltersState>([]);
 
   const [rows, setRows] = useState<RowData>(new Map());
   const [columns, setColumns] = useState<ColumnData>(new Map());
@@ -119,6 +120,8 @@ export default function Base() {
           setSorting={setSorting} 
           columnVisibility={columnVisibility}
           setVisibility={setVisibility}
+          filter={filter}
+          setFilter={setFilter}
           />
       </div>
 
@@ -138,9 +141,9 @@ export default function Base() {
             columns={columns}
             setColumns={setColumns}
             sorting={sorting}
-            setSorting={setSorting}
             columnVisibility={columnVisibility}
-            setColumnVisibility={setVisibility}
+            filter={filter}
+
           />
 
         </div>

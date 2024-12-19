@@ -1,8 +1,9 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { type SortingState } from "@tanstack/react-table";
+import { type ColumnFiltersState, type SortingState } from "./tableTypes";
 import { useState } from "react";
 import * as Switch from "@radix-ui/react-switch";
 import { type RouterOutputs } from "~/trpc/react";
+
 type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
 function SortingDropdown({
     columns,
@@ -233,11 +234,10 @@ function ColumnVisibilityDropdown({
                             {filteredColumns.map(([id, column]) => (
                                 <div key={id} className="flex items-center">
                                     <Switch.Root
-                                        className={`w-3 h-2 rounded-full relative ${
-                                            visibility[id.toString()]
+                                        className={`w-3 h-2 rounded-full relative ${visibility[id.toString()]
                                                 ? "bg-green-500"
                                                 : "bg-gray-300"
-                                        }`}
+                                            }`}
                                         id={`switch-${id}`}
                                         checked={visibility[id.toString()] ?? true}
                                         onCheckedChange={(isSelected) =>
@@ -248,11 +248,10 @@ function ColumnVisibilityDropdown({
                                         }
                                     >
                                         <Switch.Thumb
-                                            className={`block w-1 h-1 rounded-full bg-white transform transition ${
-                                                visibility[id.toString()]
+                                            className={`block w-1 h-1 rounded-full bg-white transform transition ${visibility[id.toString()]
                                                     ? "translate-x-1.5"
                                                     : "translate-x-0.5"
-                                            }`}
+                                                }`}
                                         />
                                     </Switch.Root>
                                     <span className="text-xs text-gray-700 ml-2">{column.name}</span>
@@ -281,6 +280,194 @@ function ColumnVisibilityDropdown({
         </DropdownMenu.Root>
     );
 }
+
+
+
+export function FilterDropdown({
+    columns,
+    filter,
+    setFilter,
+}: {
+    columns: Map<number, { name: string; type: "TEXT" | "NUMBER" }>;
+    filter: ColumnFiltersState;
+    setFilter: (filters: ColumnFiltersState) => void;
+}) {
+    const addCondition = () => {
+        const firstColumnEntry = Array.from(columns.entries())[0];
+        if (!firstColumnEntry) return;
+
+        const [firstColId, firstCol] = firstColumnEntry;
+        const defaultOperator = firstCol.type === "TEXT" ? "contains" : "equals";
+
+        setFilter([
+            ...filter,
+            { id: firstColId.toString(), value: { operator: defaultOperator, value: "" } },
+        ]);
+    };
+
+    const updateCondition = (
+        index: number,
+        key: "id" | "value",
+        value: string | { operator: "contains" | "not_contains" | "equals" | "greater_than" | "less_than" | "is_empty" | "is_not_empty"; value: string | number }
+    ) => {
+        const updatedFilters = [...filter];
+
+        const filterToUpdate = updatedFilters[index];
+        if (!filterToUpdate) {
+            console.warn(`Filter at index ${index} does not exist.`);
+            return;
+        }
+
+        if (key === "id") {
+            const newColumn = columns.get(Number(value));
+            if (newColumn) {
+                const defaultOperator = newColumn.type === "TEXT" ? "contains" : "equals";
+                updatedFilters[index] = {
+                    id: value as string, 
+                    value: { operator: defaultOperator, value: "" },
+                };
+            }
+        } else if (key === "value") {
+            if (
+                typeof value === "object" &&
+                "operator" in value &&
+                "value" in value &&
+                filterToUpdate.value &&
+                typeof filterToUpdate.value === "object"
+            ) {
+                // Type assertion ensures the operator matches the allowed set
+                filterToUpdate.value = {
+                    ...filterToUpdate.value,
+                    operator: value.operator,
+                    value: value.value,
+                };
+            } else {
+                console.warn(`Invalid value provided for filter update.`);
+            }
+        }
+
+        setFilter(updatedFilters);
+    };
+
+
+    const removeCondition = (index: number) => {
+        const updatedFilters = filter.filter((_, i) => i !== index);
+        setFilter(updatedFilters);
+    };
+
+    const getOperators = (type: "TEXT" | "NUMBER") => {
+        if (type === "TEXT") {
+            return [
+                { label: "Contains", value: "contains" },
+                { label: "Does Not Contain", value: "not_contains" },
+                { label: "Equals", value: "equals" },
+                { label: "Is Empty", value: "is_empty" },
+                { label: "Is Not Empty", value: "is_not_empty" },
+            ];
+        }
+        return [
+            { label: "Equals", value: "equals" },
+            { label: "Greater Than", value: "greater_than" },
+            { label: "Less Than", value: "less_than" },
+        ];
+    };
+
+    return (
+        <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+                <button className="flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none">
+                    <svg
+                        width="16"
+                        height="16"
+                        className="mr-1 text-black"
+                        fill="currentColor"
+                        aria-hidden="true"
+                    >
+                        <use href={`/icons/icon_definitions.svg#FunnelSimple`} />
+                    </svg>
+                    <span className="text-xs text-gray-700">Filter</span>
+                </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                    className="bg-white border rounded shadow p-4 mt-2 text-sm w-96"
+                    align="start"
+                >
+                    <div className="flex flex-col space-y-3">
+                        {filter.map((condition, index) => {
+                            const column = columns.get(Number(condition.id)) ?? { type: "TEXT" };
+                            const operators = getOperators(column.type);
+
+                            return (
+                                <div key={index} className="flex items-center space-x-2">
+                                    <select
+                                        value={condition.id}
+                                        onChange={(e) => updateCondition(index, "id", e.target.value)}
+                                        className="w-1/3 p-1 border rounded"
+                                    >
+                                        {Array.from(columns.entries()).map(([colId, col]) => (
+                                            <option key={colId} value={colId}>
+                                                {col.name}
+                                            </option>
+                                        ))}
+                                    </select>
+
+                                    <select
+                                        value={condition.value.operator}
+                                        onChange={(e) =>
+                                            updateCondition(index, "value", {
+                                                operator: e.target.value as "contains" | "not_contains" | "equals" | "greater_than" | "less_than" | "is_empty" | "is_not_empty",
+                                                value: "",
+                                            })
+                                        }
+                                        className="w-1/3 p-1 border rounded"
+                                    >
+                                        {operators.map((operator) => (
+                                            <option key={operator.value} value={operator.value}>
+                                                {operator.label}
+                                            </option>
+                                        ))}
+                                    </select>
+
+
+                                    {(condition.value.operator !== "is_empty" &&
+                                        condition.value.operator !== "is_not_empty") && (
+                                            <input
+                                                type={column.type === "NUMBER" ? "number" : "text"}
+                                                value={condition.value.value}
+                                                onChange={(e) =>
+                                                    updateCondition(index, "value", { operator: condition.value.operator, value: e.target.value })
+                                                }
+                                                className="w-1/3 p-1 border rounded"
+                                            />
+                                        )}
+
+                                    <button
+                                        onClick={() => removeCondition(index)}
+                                        className="text-gray-500"
+                                        aria-label="Remove Filter"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            );
+                        })}
+
+                        <button
+                            onClick={addCondition}
+                            className="flex items-center text-gray-500 hover:underline"
+                        >
+                            <span className="mr-2">+</span> Add Another Condition
+                        </button>
+                    </div>
+                </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+    );
+}
+
+
+
 
 
 
@@ -324,7 +511,9 @@ export default function TableHeader({
     setSorting,
     columns,
     columnVisibility,
-    setVisibility
+    setVisibility,
+    filter,
+    setFilter,
 }: {
     isLoading: boolean;
     toggleSidebar: () => void;
@@ -334,6 +523,8 @@ export default function TableHeader({
     columns: ColumnData;
     columnVisibility: Record<string, boolean>;
     setVisibility: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+    filter: ColumnFiltersState;
+    setFilter: React.Dispatch<React.SetStateAction<ColumnFiltersState>>;
 }) {
 
 
@@ -447,7 +638,7 @@ export default function TableHeader({
                 </svg>
             </button>
             <ColumnVisibilityDropdown columns={columns} visibility={columnVisibility} setVisibility={setVisibility} />
-            <Button label="Filter" iconId="FunnelSimple" />
+            <FilterDropdown columns={columns} filter={filter} setFilter={setFilter} />
             <Button label="Group" iconId="Group" />
             <SortingDropdown columns={columns} sorting={sorting} setSorting={setSorting} />
             <Button label="Color" iconId="PaintBucket" />

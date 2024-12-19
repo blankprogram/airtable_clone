@@ -7,18 +7,22 @@ import {
     useReactTable,
     getFilteredRowModel,
     type Row,
-    type SortingState,
     getSortedRowModel,
 } from "@tanstack/react-table";
 import { type RouterOutputs, api } from "~/trpc/react";
 import { FiChevronDown } from "react-icons/fi";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { type ColumnFiltersState, type SortingState } from "./tableTypes";
 
 type RowData = RouterOutputs["post"]["getTableData"]["rows"];
 type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
 
-
+type RowDataType = {
+    id: number;
+    pos: number;
+    cells: Map<number, { cellId: number; value: string }>;
+};
 
 export const AddColumnDropdown = ({ onAddColumn }: { onAddColumn: (name: string, type: "TEXT" | "NUMBER") => void }) => {
     const [columnName, setColumnName] = useState("");
@@ -81,9 +85,10 @@ export default function BaseTable({
     columns,
     setColumns,
     sorting,
-    setSorting,
     columnVisibility,
-    setColumnVisibility,
+
+    filter,
+
 }: {
     tableId: number;
     rows: RowData;
@@ -91,9 +96,11 @@ export default function BaseTable({
     columns: ColumnData;
     setColumns: React.Dispatch<React.SetStateAction<ColumnData>>;
     sorting: SortingState;
-    setSorting: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
+
     columnVisibility: Record<string, boolean>;
-    setColumnVisibility: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+
+    filter: ColumnFiltersState;
+
 }) {
 
 
@@ -171,12 +178,6 @@ export default function BaseTable({
 
 
 
-    type RowDataType = {
-        id: number;
-        pos: number;
-        cells: Map<number, { cellId: number; value: string }>;
-    };
-
 
     const Filter = (row: Row<RowDataType>, columnId: string, value: string): boolean => {
         const cellValue = row.getValue(columnId);
@@ -229,6 +230,55 @@ export default function BaseTable({
         }
     };
 
+    const isEmpty = (value: unknown): boolean =>
+    value === "" || value === null || value === undefined;
+  
+  const isNumber = (value: unknown): value is number =>
+    typeof value === "number" || !isNaN(Number(value));
+  
+  const toString = (value: unknown): string => value?.toString() ?? "";
+  
+  const customFilterFn = (
+    row: Row<RowDataType>,
+    columnId: string,
+    filterValue: { operator: string; value: string }
+  ): boolean => {
+    const cellValue = row.getValue(columnId);
+    const { operator, value } = filterValue;
+  
+    switch (operator) {
+      case "is_empty":
+        return isEmpty(cellValue);
+  
+      case "is_not_empty":
+        return !isEmpty(cellValue);
+  
+      case "equals":
+        if (isNumber(cellValue) && isNumber(value)) {
+          return Number(cellValue) === Number(value);
+        }
+        return toString(cellValue) === value;
+  
+      case "contains":
+        return toString(cellValue).toLowerCase().includes(value.toLowerCase());
+  
+      case "not_contains":
+        return !toString(cellValue).toLowerCase().includes(value.toLowerCase());
+  
+      case "greater_than":
+        return isNumber(cellValue) && isNumber(value) && Number(cellValue) > Number(value);
+  
+      case "less_than":
+        return isNumber(cellValue) && isNumber(value) && Number(cellValue) < Number(value);
+  
+      default:
+        return true;
+    }
+  };
+  
+      
+      
+
     const tableData = useMemo(() => {
         return Array.from(rows.entries()).map(([rowId, row], index) => ({
             id: rowId,
@@ -258,6 +308,7 @@ export default function BaseTable({
         const dynamicColumns = Array.from(columns.entries()).map(([columnId, column]) => ({
             header: column.name,
             accessorKey: columnId.toString(),
+            filterFn: customFilterFn,
             cell: ({
                 row,
             }: {
@@ -342,16 +393,18 @@ export default function BaseTable({
 
         return [...baseColumns, ...dynamicColumns];
     }, [columns, editingCell, updateData, rows]);
+    console.log(filter)
     const table = useReactTable({
         data: tableData,
-        columns: tableColumns, // All columns
+        columns: tableColumns,
         globalFilterFn: Filter,
         state: {
+            columnFilters: filter,
             globalFilter,
             sorting,
-            columnVisibility, // Integrate visibility state
+            columnVisibility, 
         },
-        onColumnVisibilityChange: setColumnVisibility, // Handle visibility updates
+
         getCoreRowModel: getCoreRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         getSortedRowModel: getSortedRowModel(),
