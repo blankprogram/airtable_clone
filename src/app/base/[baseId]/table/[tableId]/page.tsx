@@ -6,7 +6,7 @@ import BaseTable from "~/app/_components/BaseTable";
 import TableHeader from "~/app/_components/BaseTableHeader";
 import Sidebar from "~/app/_components/BaseSidebar";
 import { type RouterOutputs, api } from "~/trpc/react";
-import { type ColumnFiltersState, type SortingState } from "~/app/_components/tableTypes";
+import { type ColumnFiltersState, type SortingState, type ViewData } from "~/app/_components/tableTypes";
 
 export default function Base() {
   const { baseId: baseIdString, tableId: tableIdString } = useParams<{ baseId: string; tableId: string }>();
@@ -24,28 +24,112 @@ export default function Base() {
 
 
   const [columnVisibility, setVisibility] = useState<Record<string, boolean>>({});
-  
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filter, setFilter] = useState<ColumnFiltersState>([]);
 
   const [rows, setRows] = useState<RowData>(new Map());
   const [columns, setColumns] = useState<ColumnData>(new Map());
 
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
 
-  const addBulkRowsMutation = api.post.addBulkRows.useMutation();
+  const [views, setViews] = useState<ViewData[]>([]);
+  const [currentViewId, setCurrentViewId] = useState<number | null>(null);
+
+  const fetchSize = 200;
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isLoading: tableLoading,
+  } = api.post.getTableData.useInfiniteQuery(
+    {
+      tableId,
+      limit: fetchSize,
+    },
+    {
+      getNextPageParam: (lastPage) => lastPage.nextCursor,
+    }
+  );
+
+  console.log(views.find((view) => view.id === currentViewId))
 
   useEffect(() => {
-    if (columns.size > 0 && Object.keys(columnVisibility).length === 0) {
-      const initialVisibility = Object.fromEntries(
-        Array.from(columns.keys()).map((colId) => [colId.toString(), true])
-      );
-      setVisibility(initialVisibility);
-    }
-  }, [columns, columnVisibility]);
+    if (!data) return;
 
+
+    const firstPageColumns = data.pages[0]?.columns ?? new Map();
+    setColumns(firstPageColumns);
+
+    const combinedRows: RowData = new Map();
+    data.pages.forEach((page) => {
+      Array.from(page.rows.entries()).forEach(([rowId, rowData]) => {
+        combinedRows.set(rowId, rowData);
+      });
+    });
+    setRows(combinedRows);
+
+
+    const allViews = data.pages[0]?.views ?? [];
+    setViews(allViews);
+    if (currentViewId === null && allViews.length > 0) {
+      setCurrentViewId(allViews[0]?.id ?? null);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    if (!currentViewId) return;
+
+    const selectedView = views.find((view) => view.id === currentViewId);
+
+    if (selectedView) {
+      setFilter(selectedView.filters);
+      setSorting(selectedView.sorting);
+      setVisibility(selectedView.columnVisibility);
+    }
+  }, [currentViewId]);
+
+  const updateViewMutation = api.post.updateView.useMutation();
+
+  useEffect(() => {
+    if (!currentViewId) return;
+
+    const selectedViewIndex = views.findIndex((view) => view.id === currentViewId);
+
+    if (selectedViewIndex >= 0) {
+      const updatedViews = [...views];
+      const selectedView = updatedViews[selectedViewIndex]!;
+
+      updatedViews[selectedViewIndex] = {
+        ...selectedView,
+        filters: filter,
+        sorting: sorting,
+        columnVisibility: columnVisibility,
+        id: selectedView.id,
+        name: selectedView.name || "View",
+      };
+
+      setViews(updatedViews);
+    }
+
+
+    const debounceTimer = setTimeout(() => {
+      updateViewMutation.mutate({
+        viewId: currentViewId,
+        sorting,
+        filters: filter,
+        columnVisibility,
+      });
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [currentViewId, sorting, filter, columnVisibility]);
+
+
+
+  const addBulkRowsMutation = api.post.addBulkRows.useMutation();
 
   const addBulkRows = (count: number) => {
     const tempRows = new Map<number, { cells: Map<number, { cellId: number; value: string }> }>();
@@ -117,18 +201,25 @@ export default function Base() {
           addBulkRows={addBulkRows}
           sorting={sorting}
           columns={columns}
-          setSorting={setSorting} 
+          setSorting={setSorting}
           columnVisibility={columnVisibility}
           setVisibility={setVisibility}
           filter={filter}
           setFilter={setFilter}
-          />
+        />
       </div>
 
       <div className="flex flex-grow ">
         {isSidebarOpen && (
           <div className="flex-shrink-0 w-72 bg-white border-r border-gray-200 h-full">
-            <Sidebar />
+            <Sidebar
+              views={views}
+              setViews={setViews}
+              currentViewId={currentViewId}
+              setCurrentViewId={setCurrentViewId}
+              tableId={tableId}
+            />
+
           </div>
         )}
 
@@ -143,8 +234,12 @@ export default function Base() {
             sorting={sorting}
             columnVisibility={columnVisibility}
             filter={filter}
-
+            fetchNextPage={fetchNextPage}
+            hasNextPage={hasNextPage}
+            isFetching={isFetching}
+            isLoading={tableLoading}
           />
+
 
         </div>
       </div>

@@ -13,10 +13,11 @@ import { type RouterOutputs, api } from "~/trpc/react";
 import { FiChevronDown } from "react-icons/fi";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { type ColumnFiltersState, type SortingState } from "./tableTypes";
+import { type ColumnFiltersState, type SortingState, type ViewData} from "./tableTypes";
 
 type RowData = RouterOutputs["post"]["getTableData"]["rows"];
 type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
+
 
 type RowDataType = {
     id: number;
@@ -86,9 +87,11 @@ export default function BaseTable({
     setColumns,
     sorting,
     columnVisibility,
-
     filter,
-
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    isLoading,
 }: {
     tableId: number;
     rows: RowData;
@@ -96,33 +99,15 @@ export default function BaseTable({
     columns: ColumnData;
     setColumns: React.Dispatch<React.SetStateAction<ColumnData>>;
     sorting: SortingState;
-
     columnVisibility: Record<string, boolean>;
-
     filter: ColumnFiltersState;
-
+    fetchNextPage: () => void;
+    hasNextPage: boolean | undefined;
+    isFetching: boolean;
+    isLoading: boolean;
 }) {
 
-
-
     const generateTempId = () => -Date.now() + Math.floor(Math.random() * 1000);
-
-    const fetchSize = 200;
-    const {
-        data,
-        fetchNextPage,
-        hasNextPage,
-        isFetching,
-        isLoading,
-    } = api.post.getTableData.useInfiniteQuery(
-        {
-            tableId,
-            limit: fetchSize,
-        },
-        {
-            getNextPageParam: (lastPage) => lastPage.nextCursor,
-        }
-    );
 
     const [editingCell, setEditingCell] = useState<{
         cellId: number;
@@ -141,22 +126,7 @@ export default function BaseTable({
     const [globalFilter, setGlobalFilter] = useState("");
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
-    useEffect(() => {
-        if (data) {
-            const firstPageColumns = data.pages[0]?.columns ?? new Map();
-            setColumns(firstPageColumns);
-
-            const combinedRows: RowData = new Map();
-
-            data.pages.forEach((page) => {
-                Array.from(page.rows.entries()).forEach(([rowId, rowData]) => {
-                    combinedRows.set(rowId, rowData);
-                });
-            });
-
-            setRows(combinedRows);
-        }
-    }, [data, setRows, setColumns]);
+    
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -175,9 +145,6 @@ export default function BaseTable({
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [isSearchOpen]);
-
-
-
 
     const Filter = (row: Row<RowDataType>, columnId: string, value: string): boolean => {
         const cellValue = row.getValue(columnId);
@@ -393,7 +360,6 @@ export default function BaseTable({
 
         return [...baseColumns, ...dynamicColumns];
     }, [columns, editingCell, updateData, rows]);
-    console.log(filter)
     const table = useReactTable({
         data: tableData,
         columns: tableColumns,

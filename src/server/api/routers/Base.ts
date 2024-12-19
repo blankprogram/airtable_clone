@@ -2,6 +2,7 @@ import { z } from "zod";
 import { faker } from '@faker-js/faker';
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
+import { type ColumnFiltersState, type SortingState, type UpdateData } from "~/app/_components/tableTypes";
 
 export const baseRouter = createTRPCRouter({
   getBasesForUser: protectedProcedure.query(async ({ ctx }) => {
@@ -12,7 +13,6 @@ export const baseRouter = createTRPCRouter({
       include: {
         tables: {
           select: { id: true },
-          orderBy: { createdAt: "asc" },
           take: 1,
         },
       },
@@ -81,6 +81,17 @@ export const baseRouter = createTRPCRouter({
       await ctx.db.cell.createMany({
         data: cells,
       });
+
+      await ctx.db.view.create({
+        data: {
+          name: "View 1",
+          tableId: newTable.id,
+          sorting: JSON.stringify([]),
+          filters: JSON.stringify([]),
+          columnVisibility: JSON.stringify({ [nameColumn.id]: true }),
+        },
+      });
+
 
       return {
         ...newBase,
@@ -209,13 +220,24 @@ export const baseRouter = createTRPCRouter({
 
         await prisma.cell.createMany({ data: cells });
 
+
+        await prisma.view.create({
+          data: {
+            name: "View 1",
+            tableId: table.id,
+            sorting: JSON.stringify([]),
+            filters: JSON.stringify([]),
+            columnVisibility: JSON.stringify({ [column.id]: true }),
+          },
+        });
+
         return table;
       });
 
       return newTable;
     }),
 
-  getTableData: protectedProcedure
+    getTableData: protectedProcedure
     .input(
       z.object({
         tableId: z.number(),
@@ -225,20 +247,29 @@ export const baseRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { tableId, limit, cursor } = input;
-
+  
       const table = await ctx.db.table.findUnique({
         where: { id: tableId },
         include: {
           columns: {
             select: { id: true, name: true, type: true },
           },
+          views: {
+            select: {
+              id: true,
+              name: true,
+              sorting: true,
+              filters: true,
+              columnVisibility: true,
+            },
+          },
         },
       });
-
+  
       if (!table) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Table not found" });
       }
-
+  
       const rows = await ctx.db.row.findMany({
         where: { tableId },
         take: limit + 1,
@@ -253,21 +284,32 @@ export const baseRouter = createTRPCRouter({
             },
           },
         },
-        orderBy: { id: 'asc' },
       });
-
-
+  
       let nextCursor: number | undefined = undefined;
       if (rows.length > limit) {
         const nextItem = rows.pop();
         nextCursor = nextItem?.id;
       }
-
+      function parseJson<T>(value: unknown, defaultValue: T): T {
+        if (typeof value === "string") {
+          try {
+            return JSON.parse(value) as T;
+          } catch {
+            return defaultValue;
+          }
+        }
+        return defaultValue;
+      }
+      
+      
+      
+  
       return {
         columns: new Map(
           table.columns.map((column) => [
             column.id,
-            { name: column.name, type: column.type as 'TEXT' | 'NUMBER' },
+            { name: column.name, type: column.type as "TEXT" | "NUMBER" },
           ])
         ),
         rows: new Map(
@@ -283,9 +325,20 @@ export const baseRouter = createTRPCRouter({
             },
           ])
         ),
-        nextCursor
+        views: table.views.map((view) => ({
+          id: view.id,
+          name: view.name,
+          sorting: parseJson<SortingState>(view.sorting, []),
+          filters: parseJson<ColumnFiltersState>(view.filters, []),
+          columnVisibility: parseJson<Record<string, boolean>>(view.columnVisibility, {}),
+        })),
+        
+        
+        
+        nextCursor,
       };
     }),
+  
 
   addRow: protectedProcedure
     .input(z.object({ tableId: z.number() }))
@@ -329,7 +382,7 @@ export const baseRouter = createTRPCRouter({
     }),
 
 
-    addColumn: protectedProcedure
+  addColumn: protectedProcedure
     .input(
       z.object({
         tableId: z.number(),
@@ -339,29 +392,29 @@ export const baseRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { tableId, name, type } = input;
-  
+
       const newColumn = await ctx.db.column.create({
         data: { tableId, name, type },
       });
-  
+
       const rows = await ctx.db.row.findMany({
         where: { tableId },
         select: { id: true },
       });
-  
+
       const cellsData = rows.map((row) => ({
         value: "",
         columnId: newColumn.id,
         rowId: row.id,
       }));
-  
+
       await ctx.db.cell.createMany({ data: cellsData });
-  
+
       const createdCells = await ctx.db.cell.findMany({
         where: { columnId: newColumn.id },
         select: { id: true, rowId: true },
       });
-  
+
       const updatedRows = new Map(
         createdCells.map((cell) => [
           cell.rowId,
@@ -370,16 +423,16 @@ export const baseRouter = createTRPCRouter({
           },
         ])
       );
-  
+
       const columnMap = new Map([[newColumn.id, { name, type }]]);
-  
+
       return {
         columns: columnMap,
         rows: updatedRows,
       };
     }),
-  
-  
+
+
   editCell: protectedProcedure
     .input(
       z.object({
@@ -463,6 +516,82 @@ export const baseRouter = createTRPCRouter({
         rows: rowsMap,
       };
     }),
+
+    updateView: protectedProcedure
+    .input(
+      z.object({
+        viewId: z.number(),
+        sorting: z.array(
+          z.object({
+            id: z.string(),
+            desc: z.boolean(),
+          })
+        ).optional(),
+        filters: z.array(
+          z.object({
+            id: z.string(),
+            value: z.object({
+              operator: z.string(),
+              value: z.union([z.string(), z.number()]).optional(),
+            }),
+          })
+        ).optional(),
+        columnVisibility: z.record(z.string(), z.boolean()).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { viewId, sorting, filters, columnVisibility } = input;
+  
+      const updateData: UpdateData = {};
+      if (sorting) updateData.sorting = JSON.stringify(sorting);
+      if (filters) updateData.filters = JSON.stringify(filters);
+      if (columnVisibility) updateData.columnVisibility = JSON.stringify(columnVisibility);
+  
+      const updatedView = await ctx.db.view.update({
+        where: { id: viewId },
+        data: updateData,
+      });
+  
+      return updatedView;
+    }),
+  
+    createViewForTable: protectedProcedure
+    .input(
+      z.object({
+        tableId: z.number(),
+        name: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { tableId, name } = input;
+
+      const columns = await ctx.db.column.findMany({
+        where: { tableId },
+        select: { id: true },
+      });
+
+
+      const defaultVisibility = columns.reduce<Record<string, boolean>>(
+        (acc, column) => {
+          acc[column.id.toString()] = true;
+          return acc;
+        },
+        {}
+      );
+
+      const newView = await ctx.db.view.create({
+        data: {
+          name: name ?? `New View`,
+          tableId,
+          sorting: JSON.stringify([]),
+          filters: JSON.stringify([]),
+          columnVisibility: JSON.stringify(defaultVisibility),
+        },
+      });
+
+      return newView;
+    }),
+
 
 
 });

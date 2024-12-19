@@ -28,6 +28,22 @@ export interface FilterValue {
     id: string;
     desc: boolean;
   }
+
+  export type ViewData = {
+    id: number;
+    name: string;
+    sorting: SortingState;
+    filters: ColumnFiltersState;
+    columnVisibility: Record<string, boolean>;
+  };
+
+  export type UpdateData = {
+    sorting?: string;
+    filters?: string;
+    columnVisibility?: string;
+  };
+
+  
   
   export type SortingState = SortingStateItem[];
   

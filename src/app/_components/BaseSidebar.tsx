@@ -1,7 +1,76 @@
-export default function Sidebar() {
+import { api } from "~/trpc/react";
+import { type ColumnFiltersState, type SortingState, type ViewData } from "./tableTypes";
+
+export default function Sidebar({
+    views,
+    setViews,
+    currentViewId,
+    setCurrentViewId,
+    tableId,
+}: {
+    views: ViewData[];
+    setViews: React.Dispatch<React.SetStateAction<ViewData[]>>;
+    currentViewId: number | null;
+    setCurrentViewId: (id: number | null) => void;
+    tableId: number;
+}) {
+    const createViewMutation = api.post.createViewForTable.useMutation();
+
+    function parseJson<T>(value: unknown, defaultValue: T): T {
+        if (typeof value === "string") {
+            try {
+                return JSON.parse(value) as T;
+            } catch {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+
+    const handleCreateView = () => {
+        const temporaryViewId = -(Date.now());
+        const newView: ViewData = {
+            id: temporaryViewId,
+            name: `View ${views.length + 1}`,
+            sorting: [],
+            filters: [],
+            columnVisibility: {},
+        };
+
+        setViews((prev) => [...prev, newView]);
+
+        createViewMutation.mutate(
+            { tableId, name: newView.name },
+            {
+                onSuccess: (createdView) => {
+                    const transformedView: ViewData = {
+                        id: createdView.id,
+                        name: createdView.name,
+                        sorting: parseJson<SortingState>(createdView.sorting, []),
+                        filters: parseJson<ColumnFiltersState>(createdView.filters, []),
+                        columnVisibility: parseJson<Record<string, boolean>>(
+                            createdView.columnVisibility,
+                            {}
+                        ),
+                    };
+
+                    setViews((prev) =>
+                        prev.map((view) =>
+                            view.id === temporaryViewId ? transformedView : view
+                        )
+                    );
+                    setCurrentViewId(createdView.id);
+                },
+                onError: () => {
+                    setViews((prev) => prev.filter((view) => view.id !== temporaryViewId));
+                },
+            }
+        );
+    };
+
     return (
         <div className="bg-white border-r w-72 flex flex-col h-full">
-            <div className="py-4 px-6">
+            <div className="py-4 px-2">
                 <div className="flex items-center justify-center mb-2">
                     <div className="flex items-center relative">
                         <svg
@@ -34,37 +103,38 @@ export default function Sidebar() {
                 </div>
                 <div className="border-b border-gray-300 mb-2"></div>
 
-                <div>
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm">Grid View</p>
-                        <button className="text-gray-500 text-sm">+</button>
-                    </div>
+                <div className="space-y-2">
+                    {views.map((view) => (
+                        <button
+                            key={view.id}
+                            onClick={() => setCurrentViewId(view.id)}
+                            className={`flex items-center justify-between w-full px-3 py-2 rounded-md ${currentViewId === view.id ? "bg-blue-200" : "hover:bg-gray-100"
+                                }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                    className="text-blue-500"
+                                >
+                                    <use href={`/icons/icon_definitions.svg#GridFeature`} />
+                                </svg>
+                                <p className="text-xs font-medium">{view.name}</p>
+                            </div>
+                        </button>
+                    ))}
                 </div>
             </div>
 
             <div className="flex-grow"></div>
             <div className="px-6 pt-4">
                 <div className="border-b border-gray-300 mb-4"></div>
-                <div className="flex items-center justify-between ">
-                    <p className="text-sm font-semibold">Create</p>
-                    <button className="text-gray-500">
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            className="w-4 h-4"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M3.64645 5.64645C3.84171 5.45118 4.15829 5.45118 4.35355 5.64645L8 9.29289L11.6464 5.64645C11.8417 5.45118 12.1583 5.45118 12.3536 5.64645C12.5488 5.84171 12.5488 6.15829 12.3536 6.35355L8.35355 10.3536C8.15829 10.5488 7.84171 10.5488 7.64645 10.3536L3.64645 6.35355C3.45118 6.15829 3.45118 5.84171 3.64645 5.64645Z"
-                            />
-                        </svg>
-                    </button>
+                <div className="flex items-center">
+                    <p className="text-sm font-semibold ml-3">Create</p>
                 </div>
-                <div className="space-y-3 py-6">
+                <div className="py-2">
                     {[
                         { name: "Grid", icon: "GridFeature", color: "text-blue-500" },
                         { name: "Calendar", icon: "CalendarFeature", color: "text-[#dc703e]" },
@@ -76,9 +146,12 @@ export default function Sidebar() {
                         { name: "New Section", icon: "", color: "text-pink-500" },
                     ].map((view, index) => (
                         <div key={view.name}>
-                            {view.icon ? (
-                                <div className="flex items-center justify-between ">
-                                    <div className="flex items-center gap-3">
+                            <button
+                                onClick={handleCreateView}
+                                className="flex items-center justify-between w-full px-3 py-2 rounded-md hover:bg-gray-100"
+                            >
+                                <div className="flex items-center gap-3">
+                                    {view.icon && (
                                         <svg
                                             width="16"
                                             height="16"
@@ -88,43 +161,27 @@ export default function Sidebar() {
                                         >
                                             <use href={`/icons/icon_definitions.svg#${view.icon}`} />
                                         </svg>
-                                        <p className="text-sm font-medium">{view.name}</p>
-                                    </div>
-                                    <button className="text-gray-500 text-sm">
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            fill="currentColor"
-                                            aria-hidden="true"
-                                            className="text-gray-500"
-                                        >
-                                            <use href={`/icons/icon_definitions.svg#Plus`} />
-                                        </svg>
-                                    </button>
+                                    )}
+                                    <p className="text-sm font-medium">{view.name}</p>
                                 </div>
-                            ) : (
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <p className="text-sm font-medium">{view.name}</p>
-                                    </div>
-                                    <button className="text-gray-500 text-sm">
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            fill="currentColor"
-                                            aria-hidden="true"
-                                            className="text-gray-500"
-                                        >
-                                            <use href={`/icons/icon_definitions.svg#Plus`} />
-                                        </svg>
-                                    </button>
-                                </div>
-                            )}
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    fill="currentColor"
+                                    aria-hidden="true"
+                                    className="text-gray-500"
+                                >
+                                    <use href={`/icons/icon_definitions.svg#Plus`} />
+                                </svg>
+                            </button>
 
                             {view.name === "New Section" && (
                                 <>
                                     <div className="border-b border-gray-300 my-4"></div>
-                                    <div className="flex items-center justify-between">
+                                    <button
+                                        onClick={handleCreateView}
+                                        className="flex items-center justify-between w-full px-3 py-2 rounded-md hover:bg-gray-100"
+                                    >
                                         <div className="flex items-center gap-3">
                                             <svg
                                                 width="16"
@@ -137,24 +194,23 @@ export default function Sidebar() {
                                             </svg>
                                             <p className="text-sm font-medium">Form</p>
                                         </div>
-                                        <button className="text-gray-500 text-sm">
-                                            <svg
-                                                width="16"
-                                                height="16"
-                                                fill="currentColor"
-                                                aria-hidden="true"
-                                                className="text-gray-500"
-                                            >
-                                                <use href={`/icons/icon_definitions.svg#Plus`} />
-                                            </svg>
-                                        </button>
-                                    </div>
+                                        <svg
+                                            width="16"
+                                            height="16"
+                                            fill="currentColor"
+                                            aria-hidden="true"
+                                            className="text-gray-500"
+                                        >
+                                            <use href={`/icons/icon_definitions.svg#Plus`} />
+                                        </svg>
+                                    </button>
                                 </>
                             )}
                         </div>
                     ))}
                 </div>
             </div>
+
         </div>
     );
 }

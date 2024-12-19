@@ -335,7 +335,6 @@ export function FilterDropdown({
                 filterToUpdate.value &&
                 typeof filterToUpdate.value === "object"
             ) {
-                // Type assertion ensures the operator matches the allowed set
                 filterToUpdate.value = {
                     ...filterToUpdate.value,
                     operator: value.operator,
