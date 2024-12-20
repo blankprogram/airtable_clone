@@ -16,17 +16,6 @@ export default function Sidebar({
 }) {
     const createViewMutation = api.post.createViewForTable.useMutation();
 
-    function parseJson<T>(value: unknown, defaultValue: T): T {
-        if (typeof value === "string") {
-            try {
-                return JSON.parse(value) as T;
-            } catch {
-                return defaultValue;
-            }
-        }
-        return defaultValue;
-    }
-
     const handleCreateView = () => {
         const temporaryViewId = -(Date.now());
         const newView: ViewData = {
@@ -43,20 +32,9 @@ export default function Sidebar({
             { tableId, name: newView.name },
             {
                 onSuccess: (createdView) => {
-                    const transformedView: ViewData = {
-                        id: createdView.id,
-                        name: createdView.name,
-                        sorting: parseJson<SortingState>(createdView.sorting, []),
-                        filters: parseJson<ColumnFiltersState>(createdView.filters, []),
-                        columnVisibility: parseJson<Record<string, boolean>>(
-                            createdView.columnVisibility,
-                            {}
-                        ),
-                    };
-
                     setViews((prev) =>
                         prev.map((view) =>
-                            view.id === temporaryViewId ? transformedView : view
+                            view.id === temporaryViewId ? createdView : view
                         )
                     );
                     setCurrentViewId(createdView.id);

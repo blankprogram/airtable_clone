@@ -3,6 +3,36 @@ import { faker } from '@faker-js/faker';
 import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { type ColumnFiltersState, type SortingState, type UpdateData } from "~/app/_components/tableTypes";
+import { type JsonValue } from "@prisma/client/runtime/library";
+
+
+function transformView(view: {
+  id: number;
+  name: string;
+  sorting: JsonValue;
+  filters: JsonValue;
+  columnVisibility: JsonValue;
+}) {
+  function parseJson<T>(value: JsonValue, defaultValue: T): T {
+    if (typeof value === "string") {
+      try {
+        return JSON.parse(value) as T;
+      } catch {
+        return defaultValue;
+      }
+    }
+    return defaultValue;
+  }
+
+  return {
+    id: view.id,
+    name: view.name,
+    sorting: parseJson<SortingState>(view.sorting, []),
+    filters: parseJson<ColumnFiltersState>(view.filters, []),
+    columnVisibility: parseJson<Record<string, boolean>>(view.columnVisibility, {}),
+  };
+}
+
 
 export const baseRouter = createTRPCRouter({
   getBasesForUser: protectedProcedure.query(async ({ ctx }) => {
@@ -238,107 +268,86 @@ export const baseRouter = createTRPCRouter({
     }),
 
     getTableData: protectedProcedure
-    .input(
-      z.object({
-        tableId: z.number(),
-        limit: z.number(),
-        cursor: z.number().nullish(),
-      })
-    )
-    .query(async ({ ctx, input }) => {
-      const { tableId, limit, cursor } = input;
-  
-      const table = await ctx.db.table.findUnique({
-        where: { id: tableId },
-        include: {
-          columns: {
-            select: { id: true, name: true, type: true },
-          },
-          views: {
-            select: {
-              id: true,
-              name: true,
-              sorting: true,
-              filters: true,
-              columnVisibility: true,
-            },
+  .input(
+    z.object({
+      tableId: z.number(),
+      limit: z.number(),
+      cursor: z.number().nullish(),
+    })
+  )
+  .query(async ({ ctx, input }) => {
+    const { tableId, limit, cursor } = input;
+
+    const table = await ctx.db.table.findUnique({
+      where: { id: tableId },
+      include: {
+        columns: {
+          select: { id: true, name: true, type: true },
+        },
+        views: {
+          orderBy: {createdAt: 'asc'},
+          select: {
+            id: true,
+            name: true,
+            sorting: true,
+            filters: true,
+            columnVisibility: true,
           },
         },
-      });
-  
-      if (!table) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Table not found" });
-      }
-  
-      const rows = await ctx.db.row.findMany({
-        where: { tableId },
-        take: limit + 1,
-        skip: cursor ? 1 : 0,
-        cursor: cursor ? { id: cursor } : undefined,
-        include: {
-          cells: {
-            select: {
-              id: true,
-              value: true,
-              columnId: true,
-            },
+      },
+    });
+
+    if (!table) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "Table not found" });
+    }
+
+    const rows = await ctx.db.row.findMany({
+      where: { tableId },
+      take: limit + 1,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
+      include: {
+        cells: {
+          select: {
+            id: true,
+            value: true,
+            columnId: true,
           },
         },
-      });
-  
-      let nextCursor: number | undefined = undefined;
-      if (rows.length > limit) {
-        const nextItem = rows.pop();
-        nextCursor = nextItem?.id;
-      }
-      function parseJson<T>(value: unknown, defaultValue: T): T {
-        if (typeof value === "string") {
-          try {
-            return JSON.parse(value) as T;
-          } catch {
-            return defaultValue;
-          }
-        }
-        return defaultValue;
-      }
-      
-      
-      
-  
-      return {
-        columns: new Map(
-          table.columns.map((column) => [
-            column.id,
-            { name: column.name, type: column.type as "TEXT" | "NUMBER" },
-          ])
-        ),
-        rows: new Map(
-          rows.map((row) => [
-            row.id,
-            {
-              cells: new Map(
-                row.cells.map((cell) => [
-                  cell.columnId,
-                  { cellId: cell.id, value: cell.value },
-                ])
-              ),
-            },
-          ])
-        ),
-        views: table.views.map((view) => ({
-          id: view.id,
-          name: view.name,
-          sorting: parseJson<SortingState>(view.sorting, []),
-          filters: parseJson<ColumnFiltersState>(view.filters, []),
-          columnVisibility: parseJson<Record<string, boolean>>(view.columnVisibility, {}),
-        })),
-        
-        
-        
-        nextCursor,
-      };
-    }),
-  
+      },
+    });
+
+    let nextCursor: number | undefined = undefined;
+    if (rows.length > limit) {
+      const nextItem = rows.pop();
+      nextCursor = nextItem?.id;
+    }
+
+    return {
+      columns: new Map(
+        table.columns.map((column) => [
+          column.id,
+          { name: column.name, type: column.type as "TEXT" | "NUMBER" },
+        ])
+      ),
+      rows: new Map(
+        rows.map((row) => [
+          row.id,
+          {
+            cells: new Map(
+              row.cells.map((cell) => [
+                cell.columnId,
+                { cellId: cell.id, value: cell.value },
+              ])
+            ),
+          },
+        ])
+      ),
+      views: table.views.map(transformView),
+      nextCursor,
+    };
+  }),
+
 
   addRow: protectedProcedure
     .input(z.object({ tableId: z.number() }))
@@ -552,45 +561,46 @@ export const baseRouter = createTRPCRouter({
         data: updateData,
       });
   
-      return updatedView;
+      return transformView(updatedView);
     }),
   
+  
     createViewForTable: protectedProcedure
-    .input(
-      z.object({
-        tableId: z.number(),
-        name: z.string().optional(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      const { tableId, name } = input;
+  .input(
+    z.object({
+      tableId: z.number(),
+      name: z.string().optional(),
+    })
+  )
+  .mutation(async ({ ctx, input }) => {
+    const { tableId, name } = input;
 
-      const columns = await ctx.db.column.findMany({
-        where: { tableId },
-        select: { id: true },
-      });
+    const columns = await ctx.db.column.findMany({
+      where: { tableId },
+      select: { id: true },
+    });
 
+    const defaultVisibility = columns.reduce<Record<string, boolean>>(
+      (acc, column) => {
+        acc[column.id.toString()] = true;
+        return acc;
+      },
+      {}
+    );
 
-      const defaultVisibility = columns.reduce<Record<string, boolean>>(
-        (acc, column) => {
-          acc[column.id.toString()] = true;
-          return acc;
-        },
-        {}
-      );
+    const newView = await ctx.db.view.create({
+      data: {
+        name: name ?? `New View`,
+        tableId,
+        sorting: JSON.stringify([]),
+        filters: JSON.stringify([]),
+        columnVisibility: JSON.stringify(defaultVisibility),
+      },
+    });
 
-      const newView = await ctx.db.view.create({
-        data: {
-          name: name ?? `New View`,
-          tableId,
-          sorting: JSON.stringify([]),
-          filters: JSON.stringify([]),
-          columnVisibility: JSON.stringify(defaultVisibility),
-        },
-      });
+    return transformView(newView);
+  }),
 
-      return newView;
-    }),
 
 
 

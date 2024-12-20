@@ -386,7 +386,7 @@ export default function BaseTable({
     const parentRef = useRef<HTMLDivElement>(null);
 
     const rowVirtualizer = useVirtualizer({
-        count: rows.size,
+        count: table.getRowModel().rows.length,
         getScrollElement: () => parentRef.current,
         estimateSize: () => 34,
         overscan: 20,
