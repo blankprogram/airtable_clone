@@ -13,7 +13,7 @@ import { type RouterOutputs, api } from "~/trpc/react";
 import { FiChevronDown } from "react-icons/fi";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { type ColumnFiltersState, type SortingState, type ViewData} from "./tableTypes";
+import { type ColumnFiltersState, type SortingState, type ViewData } from "./tableTypes";
 
 type RowData = RouterOutputs["post"]["getTableData"]["rows"];
 type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
@@ -126,7 +126,7 @@ export default function BaseTable({
     const [globalFilter, setGlobalFilter] = useState("");
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
-    
+
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -198,53 +198,53 @@ export default function BaseTable({
     };
 
     const isEmpty = (value: unknown): boolean =>
-    value === "" || value === null || value === undefined;
-  
-  const isNumber = (value: unknown): value is number =>
-    typeof value === "number" || !isNaN(Number(value));
-  
-  const toString = (value: unknown): string => value?.toString() ?? "";
-  
-  const customFilterFn = (
-    row: Row<RowDataType>,
-    columnId: string,
-    filterValue: { operator: string; value: string }
-  ): boolean => {
-    const cellValue = row.getValue(columnId);
-    const { operator, value } = filterValue;
-  
-    switch (operator) {
-      case "is_empty":
-        return isEmpty(cellValue);
-  
-      case "is_not_empty":
-        return !isEmpty(cellValue);
-  
-      case "equals":
-        if (isNumber(cellValue) && isNumber(value)) {
-          return Number(cellValue) === Number(value);
+        value === "" || value === null || value === undefined;
+
+    const isNumber = (value: unknown): value is number =>
+        typeof value === "number" || !isNaN(Number(value));
+
+    const toString = (value: unknown): string => value?.toString() ?? "";
+
+    const customFilterFn = (
+        row: Row<RowDataType>,
+        columnId: string,
+        filterValue: { operator: string; value: string }
+    ): boolean => {
+        const cellValue = row.getValue(columnId);
+        const { operator, value } = filterValue;
+
+        switch (operator) {
+            case "is_empty":
+                return isEmpty(cellValue);
+
+            case "is_not_empty":
+                return !isEmpty(cellValue);
+
+            case "equals":
+                if (isNumber(cellValue) && isNumber(value)) {
+                    return Number(cellValue) === Number(value);
+                }
+                return toString(cellValue) === value;
+
+            case "contains":
+                return toString(cellValue).toLowerCase().includes(value.toLowerCase());
+
+            case "not_contains":
+                return !toString(cellValue).toLowerCase().includes(value.toLowerCase());
+
+            case "greater_than":
+                return isNumber(cellValue) && isNumber(value) && Number(cellValue) > Number(value);
+
+            case "less_than":
+                return isNumber(cellValue) && isNumber(value) && Number(cellValue) < Number(value);
+
+            default:
+                return true;
         }
-        return toString(cellValue) === value;
-  
-      case "contains":
-        return toString(cellValue).toLowerCase().includes(value.toLowerCase());
-  
-      case "not_contains":
-        return !toString(cellValue).toLowerCase().includes(value.toLowerCase());
-  
-      case "greater_than":
-        return isNumber(cellValue) && isNumber(value) && Number(cellValue) > Number(value);
-  
-      case "less_than":
-        return isNumber(cellValue) && isNumber(value) && Number(cellValue) < Number(value);
-  
-      default:
-        return true;
-    }
-  };
-  
-      
-      
+    };
+
+
+
 
     const tableData = useMemo(() => {
         return Array.from(rows.entries()).map(([rowId, row], index) => ({
@@ -269,6 +269,8 @@ export default function BaseTable({
                     <div className="text-center px-2">{getValue()}</div>
                 ),
                 size: 50,
+                enableGlobalFilter: false,
+
             },
         ];
 
@@ -368,7 +370,7 @@ export default function BaseTable({
             columnFilters: filter,
             globalFilter,
             sorting,
-            columnVisibility, 
+            columnVisibility,
         },
 
         getCoreRowModel: getCoreRowModel(),
@@ -714,8 +716,8 @@ export default function BaseTable({
                                     <td
                                         key={colIndex}
                                         className={`border-b border-gray-300 ${colIndex === 0 || colIndex === visibleColumnCount - 2
-                                                ? "border-r"
-                                                : ""
+                                            ? "border-r"
+                                            : ""
                                             }`}
                                     ></td>
                                 ))}

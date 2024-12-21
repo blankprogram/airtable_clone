@@ -1,8 +1,62 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { type ColumnFiltersState, type SortingState } from "./tableTypes";
+import { type FilterValue, type ColumnFiltersState, type SortingState } from "./tableTypes";
 import { useState } from "react";
 import * as Switch from "@radix-ui/react-switch";
 import { type RouterOutputs } from "~/trpc/react";
+import { PiDotsSixVertical, PiTrashLight } from "react-icons/pi";
+import { BsQuestionCircle } from "react-icons/bs";
+import { AiOutlinePlus } from "react-icons/ai";
+import { FiChevronDown, FiSearch } from "react-icons/fi";
+import * as Select from "@radix-ui/react-select";
+
+
+const RadixSelect = ({
+    options,
+    value,
+    onChange,
+    placeholder = "Select an option",
+    width = "w-full",
+    className = "",
+}: {
+    options: { value: string; label: string }[];
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    width?: string;
+    className?: string
+}) => (
+    <Select.Root value={value} onValueChange={onChange}>
+        <Select.Trigger
+            className={`flex items-center justify-between px-2 py-1.5 text-xs hover:bg-[#f4f4f4] focus:outline-none ${width} ${className}`}
+        >
+            <Select.Value placeholder={placeholder} />
+            <Select.Icon className="ml-2">
+                <FiChevronDown className="text-gray-500" />
+            </Select.Icon>
+        </Select.Trigger>
+
+        <Select.Portal>
+            <Select.Content
+                className="bg-white border border-gray-300 rounded shadow-lg p-3 w-40 text-xs"
+                position="popper"
+                sideOffset={5}
+            >
+                <Select.Viewport>
+                    {options.map((option) => (
+                        <Select.Item
+                            key={option.value}
+                            value={option.value}
+                            className="outline-none flex items-center justify-between p-2 cursor-pointer hover:bg-[#f4f4f4] rounded"
+                        >
+                            <Select.ItemText>{option.label}</Select.ItemText>
+                        </Select.Item>
+                    ))}
+                </Select.Viewport>
+            </Select.Content>
+        </Select.Portal>
+    </Select.Root>
+);
+
 
 type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
 function SortingDropdown({
@@ -13,38 +67,35 @@ function SortingDropdown({
     columns: Map<number, { name: string; type: "TEXT" | "NUMBER" }>;
     sorting: SortingState;
     setSorting: (updater: SortingState | ((prev: SortingState) => SortingState)) => void;
-
 }) {
-    const updateColumnSort = (index: number, columnId: string) => {
-        setSorting((prevSorting) =>
-            prevSorting.map((sort, i) =>
-                i === index ? { ...sort, id: columnId } : sort
-            )
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isOpen, setIsOpen] = useState(false);
 
-        );
-    };
+    const filteredColumns = Array.from(columns.entries()).filter(([_, column]) =>
+        column.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
-    const updateSortDirection = (index: number, direction: boolean) => {
-        setSorting((prevSorting) =>
-            prevSorting.map((sort, i) =>
-                i === index ? { ...sort, desc: direction } : sort
-            )
+    const updateSort = (index: number, updates: Partial<SortingState[0]>) => {
+        setSorting((prev) =>
+            prev.map((sort, i) => (i === index ? { ...sort, ...updates } : sort))
         );
     };
 
     const removeSort = (index: number) => {
-        setSorting((prevSorting) => prevSorting.filter((_, i) => i !== index));
+        setSorting((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const addSort = (columnId: string) => {
-        setSorting((prevSorting) => [
-            ...prevSorting,
-            { id: columnId, desc: false },
-        ]);
+    const addSort = () => {
+        const firstAvailable = Array.from(columns.entries()).find(
+            ([id]) => !sorting.some((sort) => sort.id === id.toString())
+        );
+        if (firstAvailable) {
+            setSorting([...sorting, { id: firstAvailable[0].toString(), desc: false }]);
+        }
     };
 
     return (
-        <DropdownMenu.Root>
+        <DropdownMenu.Root onOpenChange={setIsOpen}>
             <DropdownMenu.Trigger asChild>
                 <button className="flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none">
                     <svg
@@ -53,123 +104,133 @@ function SortingDropdown({
                         className="mr-1 text-black"
                         fill="currentColor"
                         aria-hidden="true"
-                        style={{ shapeRendering: "geometricPrecision" }}
                     >
                         <use href={`/icons/icon_definitions.svg#ArrowsDownUp`} />
                     </svg>
-                    <span className="text-xs text-gray-700">Sort By</span>
+                    <span className="text-xs text-gray-700">Sort</span>
                 </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
                 <DropdownMenu.Content
-                    className="bg-white border rounded shadow p-4  mt-2 text-xs min-w-96 "
+                    className="bg-white border border-gray-300 rounded shadow-xl text-xs min-w-80 overflow-hidden"
                     align="start"
+                    side="bottom"
+                    sideOffset={4}
                 >
-                    <div className="flex justify-between items-center">
-                        <span className="font-medium ">Sort By</span>
-                    </div>
-                    <hr className="my-2 border-gray-300" />
+                    <div className="p-5">
+                        <div className="flex items-center gap-2">
+                            <span className="font-medium">Sort By</span>
+                            <BsQuestionCircle className="text-gray-500 h-3 w-3" />
+                        </div>
+                        <hr className="border-gray-300 my-4" />
 
-                    {sorting.map(({ id, desc }, index) => {
-                        const availableColumns = Array.from(columns.entries()).filter(
-                            ([colId]) =>
-                                !sorting.some(
-                                    (sort, i) => sort.id === colId.toString() && i !== index
-                                )
-                        );
 
-                        return (
-                            <div
-                                key={index}
-                                className="flex items-center justify-between mb-4"
-                            >
-                                <select
-                                    value={id}
-                                    onChange={(e) =>
-                                        updateColumnSort(index, e.target.value)
-                                    }
-                                    className="w-56 p-1 border rounded"
-                                >
-                                    {availableColumns.map(([colId, { name }]) => (
-                                        <option
-                                            key={colId}
-                                            value={colId.toString()}
-                                        >
-                                            {name}
-                                        </option>
+                        <div className={`flex flex-col ${sorting.length === 0 ? "min-h-28" : "gap-2"}`}>
+                            {sorting.length === 0 ? (
+                                <>
+                                    <div className="flex items-center gap-2 px-2 mb-4">
+                                        <FiSearch
+                                            className={`h-4 w-4 ${isOpen ? "text-blue-500" : "text-gray-300"
+                                                }`}
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Find a field"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                            className="flex-grow text-xs focus:outline-none"
+                                            autoFocus={isOpen}
+                                        />
+                                    </div>
+                                    <div>
+                                        {filteredColumns.map(([id, { name }]) => (
+                                            <button
+                                                key={id}
+                                                className="flex justify-between px-2 py-1 w-full text-xs text-gray-700 hover:bg-gray-100 rounded"
+                                                onClick={() =>
+                                                    setSorting((prev) => [
+                                                        ...prev,
+                                                        { id: id.toString(), desc: false },
+                                                    ])
+                                                }
+                                            >
+                                                {name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    {sorting.map(({ id, desc }, index) => (
+                                        <div key={index} className="flex items-center gap-3">
+                                            <div key={index} className="flex items-center gap-3">
+                                                <RadixSelect
+                                                    options={Array.from(columns.entries())
+                                                        .filter(
+                                                            ([colId]) =>
+                                                                !sorting.some((sort, i) => sort.id === colId.toString() && i !== index)
+                                                        )
+                                                        .map(([colId, { name }]) => ({ value: colId.toString(), label: name }))}
+                                                    value={id}
+                                                    onChange={(value) => updateSort(index, { id: value })}
+                                                    width="w-60"
+                                                    className="border rounded"
+                                                />
+
+                                                <RadixSelect
+                                                    options={
+                                                        columns.get(Number(id))?.type === "TEXT"
+                                                            ? [
+                                                                { value: "asc", label: "A→Z" },
+                                                                { value: "desc", label: "Z→A" },
+                                                            ]
+                                                            : [
+                                                                { value: "asc", label: "1→9" },
+                                                                { value: "desc", label: "9→1" },
+                                                            ]
+                                                    }
+                                                    value={desc ? "desc" : "asc"}
+                                                    onChange={(value) => updateSort(index, { desc: value === "desc" })}
+                                                    width="w-32"
+                                                    className="border rounded"
+                                                />
+                                            </div>
+
+                                            <button
+                                                onClick={() => removeSort(index)}
+                                                className="text-gray-500 hover:text-black hover:bg-gray-100 p-2 rounded"
+                                                aria-label="Remove Sort"
+                                            >
+                                                ✕
+                                            </button>
+                                            {sorting.length > 1 && (
+                                                <PiDotsSixVertical className="h-4 w-4 text-gray-500 cursor-grab hover:text-black" />
+                                            )}
+                                        </div>
                                     ))}
-                                </select>
-                                <select
-                                    value={desc ? "desc" : "asc"}
-                                    onChange={(e) =>
-                                        updateSortDirection(
-                                            index,
-                                            e.target.value === "desc"
-                                        )
-                                    }
-                                    className="w-24 ml-2 p-1 border rounded"
-                                >
-                                    {columns.get(Number(id))?.type === "TEXT" ? (
-                                        <>
-                                            <option value="asc">A→Z</option>
-                                            <option value="desc">Z→A</option>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <option value="asc">1→9</option>
-                                            <option value="desc">9→1</option>
-                                        </>
-                                    )}
-                                </select>
-                                <button
-                                    onClick={() => removeSort(index)}
-                                    className="ml-2 text-gray-500"
-                                    aria-label="Remove Sort"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-                        );
-                    })}
-
-                    <div className="mt-4">
-                        <DropdownMenu.Root>
-                            <DropdownMenu.Trigger asChild>
-                                <button className="flex items-center text-gray-500 hover:underline">
-                                    <span className="mr-2">+</span> Add Another Sort
-                                </button>
-                            </DropdownMenu.Trigger>
-                            <DropdownMenu.Content
-                                className="bg-white border rounded p-1 max-h-48 overflow-auto w-96"
-                                align="start"
-                                sideOffset={10}
-
-                            >
-                                {Array.from(columns.entries())
-                                    .filter(
-                                        ([id]) =>
-                                            !sorting.some(
-                                                (sort) => sort.id === id.toString()
-                                            )
-                                    )
-                                    .map(([colId, { name }]) => (
-                                        <DropdownMenu.Item
-                                            key={colId}
-                                            onClick={() => addSort(colId.toString())}
-                                            className="cursor-pointer px-2 py-1 hover:bg-gray-100 rounded"
-                                        >
-                                            {name}
-                                        </DropdownMenu.Item>
-                                    ))}
-                            </DropdownMenu.Content>
-                        </DropdownMenu.Root>
+                                    <button
+                                        className="mt-3 flex items-center text-gray-500 hover:underline gap-2"
+                                        onClick={addSort}
+                                    >
+                                        <AiOutlinePlus className="h-4 w-4" /> Add Another Sort
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
+                    {sorting.length > 0 && (
+                        <div className="bg-[#f6f8fc] px-4 py-3 flex items-center">
+                            <Switch.Root className="w-5 h-3 rounded-full bg-[#048a0e]">
+                                <Switch.Thumb className="block w-2 h-2 rounded-full bg-white transform transition translate-x-2.5" />
+                            </Switch.Root>
+                            <span className="ml-2 text-xs">Automatically sort records</span>
+                        </div>
+                    )}
                 </DropdownMenu.Content>
             </DropdownMenu.Portal>
         </DropdownMenu.Root>
     );
 }
-
 
 
 function ColumnVisibilityDropdown({
@@ -201,10 +262,12 @@ function ColumnVisibilityDropdown({
         setVisibility(allVisible);
     };
 
+    const clearSearch = () => setSearchTerm("");
+
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-                <button className="flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none">
+                <button className="flex items-center p-1 rounded hover:bg-gray-100 focus:outline-none">
                     <svg
                         width="16"
                         height="16"
@@ -215,61 +278,90 @@ function ColumnVisibilityDropdown({
                     >
                         <use href="/icons/icon_definitions.svg#EyeSlash" />
                     </svg>
-                    <span className="text-xs text-gray-700">Hide Fields</span>
+                    <span className="text-xs text-gray-700">Hide fields</span>
                 </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
-                <DropdownMenu.Content className="bg-white border rounded p-4 mt-2 text-sm w-80" align="start">
-
+                <DropdownMenu.Content
+                    className="bg-white border border-gray-300 rounded shadow-2xl p-4 text-sm w-80 "
+                    align="start"
+                    side="bottom"
+                    sideOffset={4}
+                >
                     <div className="flex flex-col space-y-3">
-                        <input
-                            type="text"
-                            placeholder="Find a field"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className=" px-2 py-1 outline-none text-xs"
-                        />
+                        <div className="flex ">
+                            <input
+                                type="text"
+                                placeholder="Find a field"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="flex-grow text-xs focus:outline-none"
+                            />
+                            <button
+                                onClick={searchTerm ? clearSearch : undefined}
+                                className="text-gray-500 hover:text-black"
+                                aria-label={searchTerm ? "Clear search" : "Help"}
+                            >
+                                {searchTerm ? (
+                                    <span>✕</span>
+                                ) : (
+                                    <BsQuestionCircle className="h-3 w-3" />
+                                )}
+                            </button>
+                        </div>
+
                         <hr className="border-gray-300" />
-                        <div className="space-y-2">
+                        <div className="space-y-2 min-h-20">
                             {filteredColumns.map(([id, column]) => (
-                                <div key={id} className="flex items-center">
-                                    <Switch.Root
-                                        className={`w-3 h-2 rounded-full relative ${visibility[id.toString()]
-                                                ? "bg-green-500"
+                                <div
+                                    key={id}
+                                    className="flex items-center justify-between py-1"
+                                >
+                                    <div className="flex items-center flex-grow rounded hover:bg-gray-100 px-1 ">
+                                        <Switch.Root
+                                            className={`w-3 h-2 rounded-full ${visibility[id.toString()]
+                                                ? "bg-[#048a0e]"
                                                 : "bg-gray-300"
-                                            }`}
-                                        id={`switch-${id}`}
-                                        checked={visibility[id.toString()] ?? true}
-                                        onCheckedChange={(isSelected) =>
-                                            setVisibility((prev) => ({
-                                                ...prev,
-                                                [id.toString()]: isSelected,
-                                            }))
-                                        }
-                                    >
-                                        <Switch.Thumb
-                                            className={`block w-1 h-1 rounded-full bg-white transform transition ${visibility[id.toString()]
+                                                }`}
+                                            id={`switch-${id}`}
+                                            checked={visibility[id.toString()] ?? true}
+                                            onCheckedChange={(isSelected) =>
+                                                setVisibility((prev) => ({
+                                                    ...prev,
+                                                    [id.toString()]: isSelected,
+                                                }))
+                                            }
+                                        >
+                                            <Switch.Thumb
+                                                className={`block w-1 h-1 rounded-full bg-white transform transition ${visibility[id.toString()]
                                                     ? "translate-x-1.5"
                                                     : "translate-x-0.5"
-                                                }`}
+                                                    }`}
+                                            />
+                                        </Switch.Root>
+                                        <span className="text-xs text-gray-700 ml-2">{column.name}</span>
+                                    </div>
+                                    <div className="flex-shrink-0 flex items-center">
+                                        <PiDotsSixVertical
+                                            className="h-4 w-4 text-gray-500 cursor-pointer hover:text-black"
+                                            aria-hidden="true"
                                         />
-                                    </Switch.Root>
-                                    <span className="text-xs text-gray-700 ml-2">{column.name}</span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
 
 
-                        <div className="flex justify-between ">
+                        <div className="flex justify-between">
                             <button
                                 onClick={handleHideAll}
-                                className="text-xs text-gray-400 bg-gray-100 hover:bg-gray-200 px-11 py-1 rounded"
+                                className="text-xs text-gray-400 bg-gray-100 hover:bg-gray-200 hover:text-black px-11 py-1 rounded"
                             >
                                 Hide All
                             </button>
                             <button
                                 onClick={handleShowAll}
-                                className="text-xs text-gray-400 bg-gray-100 hover:bg-gray-200 px-11 py-1 rounded"
+                                className="text-xs text-gray-400 bg-gray-100 hover:bg-gray-200 px-11 hover:text-black py-1 rounded"
                             >
                                 Show All
                             </button>
@@ -280,6 +372,7 @@ function ColumnVisibilityDropdown({
         </DropdownMenu.Root>
     );
 }
+
 
 
 
@@ -305,10 +398,15 @@ export function FilterDropdown({
         ]);
     };
 
+    const addConditionGroup = () => {
+        console.log("Add Condition Group clicked");
+    };
+
     const updateCondition = (
         index: number,
         key: "id" | "value",
-        value: string | { operator: "contains" | "not_contains" | "equals" | "greater_than" | "less_than" | "is_empty" | "is_not_empty"; value: string | number }
+        value: string | FilterValue
+            
     ) => {
         const updatedFilters = [...filter];
 
@@ -323,7 +421,7 @@ export function FilterDropdown({
             if (newColumn) {
                 const defaultOperator = newColumn.type === "TEXT" ? "contains" : "equals";
                 updatedFilters[index] = {
-                    id: value as string, 
+                    id: value as string,
                     value: { operator: defaultOperator, value: "" },
                 };
             }
@@ -348,7 +446,6 @@ export function FilterDropdown({
         setFilter(updatedFilters);
     };
 
-
     const removeCondition = (index: number) => {
         const updatedFilters = filter.filter((_, i) => i !== index);
         setFilter(updatedFilters);
@@ -357,17 +454,17 @@ export function FilterDropdown({
     const getOperators = (type: "TEXT" | "NUMBER") => {
         if (type === "TEXT") {
             return [
-                { label: "Contains", value: "contains" },
-                { label: "Does Not Contain", value: "not_contains" },
-                { label: "Equals", value: "equals" },
-                { label: "Is Empty", value: "is_empty" },
-                { label: "Is Not Empty", value: "is_not_empty" },
+                { label: "contains...", value: "contains" },
+                { label: "does not contain...", value: "not_contains" },
+                { label: "is", value: "equals" },
+                { label: "is empty", value: "is_empty" },
+                { label: "is not empty", value: "is_not_empty" },
             ];
         }
         return [
-            { label: "Equals", value: "equals" },
-            { label: "Greater Than", value: "greater_than" },
-            { label: "Less Than", value: "less_than" },
+            { label: "=", value: "equals" },
+            { label: ">", value: "greater_than" },
+            { label: "<", value: "less_than" },
         ];
     };
 
@@ -387,88 +484,131 @@ export function FilterDropdown({
                     <span className="text-xs text-gray-700">Filter</span>
                 </button>
             </DropdownMenu.Trigger>
+
             <DropdownMenu.Portal>
                 <DropdownMenu.Content
-                    className="bg-white border rounded shadow p-4 mt-2 text-sm w-96"
+                    className="bg-white border border-gray-300 rounded shadow-2xl p-4 text-xs space-y-4 min-w-80"
                     align="start"
+                    side="bottom"
+                    sideOffset={4}
                 >
-                    <div className="flex flex-col space-y-3">
+                    <div className="space-y-2 mr-8">
+                        {filter.length > 0 ? (
+                            <div className="text-gray-500">In this view, show records</div>
+                        ) : (
+                            <div className="flex items-center text-[#969aa0]">
+                                <span>No filter conditions are applied</span>
+                                <BsQuestionCircle className="ml-2" />
+                            </div>
+                        )}
+
                         {filter.map((condition, index) => {
                             const column = columns.get(Number(condition.id)) ?? { type: "TEXT" };
                             const operators = getOperators(column.type);
 
                             return (
                                 <div key={index} className="flex items-center space-x-2">
-                                    <select
-                                        value={condition.id}
-                                        onChange={(e) => updateCondition(index, "id", e.target.value)}
-                                        className="w-1/3 p-1 border rounded"
-                                    >
-                                        {Array.from(columns.entries()).map(([colId, col]) => (
-                                            <option key={colId} value={colId}>
-                                                {col.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    {index === 0 ? (
+                                        <div className="flex items-center text-gray-500 px-2 w-16">Where</div>
+                                    ) : (
 
-                                    <select
-                                        value={condition.value.operator}
-                                        onChange={(e) =>
-                                            updateCondition(index, "value", {
-                                                operator: e.target.value as "contains" | "not_contains" | "equals" | "greater_than" | "less_than" | "is_empty" | "is_not_empty",
-                                                value: "",
-                                            })
-                                        }
-                                        className="w-1/3 p-1 border rounded"
-                                    >
-                                        {operators.map((operator) => (
-                                            <option key={operator.value} value={operator.value}>
-                                                {operator.label}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        <RadixSelect
+                                            options={[
+                                                { value: "and", label: "and" },
+                                                { value: "or", label: "or" },
+                                            ]}
+                                            value="and"
+                                            onChange={(value) => console.log(`Selected: ${value}`)}
+                                            placeholder="Select"
+                                            width="w-full"
+                                            className="border rounded"
+                                        />
 
 
-                                    {(condition.value.operator !== "is_empty" &&
-                                        condition.value.operator !== "is_not_empty") && (
-                                            <input
-                                                type={column.type === "NUMBER" ? "number" : "text"}
-                                                value={condition.value.value}
-                                                onChange={(e) =>
-                                                    updateCondition(index, "value", { operator: condition.value.operator, value: e.target.value })
-                                                }
-                                                className="w-1/3 p-1 border rounded"
-                                            />
-                                        )}
+                                    )}
 
-                                    <button
-                                        onClick={() => removeCondition(index)}
-                                        className="text-gray-500"
-                                        aria-label="Remove Filter"
-                                    >
-                                        ✕
-                                    </button>
+
+                                    <div className="flex items-center border rounded h-8">
+
+                                        <RadixSelect
+                                            options={Array.from(columns.entries()).map(([colId, col]) => ({
+                                                value: colId.toString(),
+                                                label: col.name,
+                                            }))}
+                                            value={condition.id}
+                                            onChange={(value) => updateCondition(index, "id", value)}
+                                            placeholder="Select a column"
+                                            width="w-32"
+                                            className="border-r"
+                                        />
+                                        <RadixSelect
+                                            options={operators}
+                                            value={condition.value.operator}
+                                            onChange={(value) =>
+                                                updateCondition(index, "value", {
+                                                    operator: value as FilterValue["operator"],
+                                                    value: condition.value.value ?? "",
+                                                })
+                                            }
+                                            placeholder="Select an operator"
+                                            width="w-32"
+                                            className="border-r"
+                                        />
+
+                                        <input
+                                            type={column.type === "NUMBER" ? "number" : "text"}
+                                            value={condition.value.value}
+                                            onChange={(e) =>
+                                                updateCondition(index, "value", {
+                                                    operator: condition.value.operator,
+                                                    value: e.target.value,
+                                                })
+                                            }
+                                            placeholder="Enter a value"
+                                            className="w-32 h-full px-2 border-r focus:outline-none"
+                                        />
+
+                                        <button
+                                            className="w-8 h-full flex items-center justify-center border-r text-black hover:bg-gray-100"
+                                            onClick={() => removeCondition(index)}
+                                        >
+                                            <PiTrashLight className="w-4 h-4" />
+                                        </button>
+
+                                        <div className="w-8 h-full flex items-center justify-center text-black cursor-grab hover:bg-gray-100">
+                                            <PiDotsSixVertical className="w-4 h-4" />
+                                        </div>
+                                    </div>
                                 </div>
                             );
                         })}
+                    </div>
 
+                    <div className="flex font-semibold">
                         <button
                             onClick={addCondition}
-                            className="flex items-center text-gray-500 hover:underline"
+                            className={`flex items-center ${filter.length > 0 ? "text-blue-500" : "text-gray-500"
+                                }`}
                         >
-                            <span className="mr-2">+</span> Add Another Condition
+                            <AiOutlinePlus className="mr-1" />
+                            Add Condition
+                        </button>
+                        <button
+                            onClick={addConditionGroup}
+                            className="flex items-center text-gray-500 ml-3"
+                        >
+                            <AiOutlinePlus className="mr-1" />
+                            Add Condition Group
+                            <BsQuestionCircle className="ml-2" />
                         </button>
                     </div>
                 </DropdownMenu.Content>
             </DropdownMenu.Portal>
         </DropdownMenu.Root>
     );
+
+
 }
-
-
-
-
-
 
 function Button({
     label,
@@ -500,7 +640,6 @@ function Button({
         </button>
     );
 }
-
 
 export default function TableHeader({
     isLoading,
@@ -586,20 +725,20 @@ export default function TableHeader({
             id="viewBar"
             role="region"
             aria-label="View configuration"
-            className="flex items-center space-x-3 bg-white p-2 border-b border-gray-300"
+            className="flex items-center gap-x-2 bg-white p-2 pl-3 border-b border-gray-300"
         >
             <Button label="Views" iconId="List" onClick={toggleSidebar} />
-            <div className="h-4 w-px bg-gray-300 mx-2"></div>
+            <div className="h-4 w-px bg-gray-300 mx-1"></div>
             <button
 
                 role="button"
-                className="flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none"
+                className="flex gap-x-1 items-center px-2 py-1.5 rounded hover:bg-gray-100 focus:outline-none"
 
             >
                 <svg
                     width="16"
                     height="16"
-                    className="flex-none"
+                    className="flex-none mr-1"
                     fill="rgb(22, 110, 225)"
                     aria-hidden="true"
                     style={{ shapeRendering: "geometricPrecision" }}
@@ -608,10 +747,10 @@ export default function TableHeader({
                 </svg>
 
                 <span
-                    className="strong truncate flex-auto text-gray-700 text-sm  ml-1"
-                    style={{ maxWidth: "200px" }}
+                    className=" flex-auto text-gray-700 text-xs font-semibold  "
+
                 >
-                    Grid View
+                    Grid view
                 </span>
 
                 <svg
