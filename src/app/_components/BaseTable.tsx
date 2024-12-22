@@ -8,12 +8,13 @@ import {
     getFilteredRowModel,
     type Row,
     getSortedRowModel,
+    type ColumnFiltersState,
 } from "@tanstack/react-table";
 import { type RouterOutputs, api } from "~/trpc/react";
 import { FiChevronDown } from "react-icons/fi";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { type ColumnFiltersState, type SortingState, type ViewData } from "./tableTypes";
+import { type FilterValue, type SortingState, type ViewData } from "./tableTypes";
 
 type RowData = RouterOutputs["post"]["getTableData"]["rows"];
 type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
@@ -197,51 +198,63 @@ export default function BaseTable({
         }
     };
 
-    const isEmpty = (value: unknown): boolean =>
-        value === "" || value === null || value === undefined;
-
-    const isNumber = (value: unknown): value is number =>
-        typeof value === "number" || !isNaN(Number(value));
-
-    const toString = (value: unknown): string => value?.toString() ?? "";
-
-    const customFilterFn = (
+    const isEmpty = (value: unknown): boolean => {
+        return value === "" || value === null || value === undefined;
+      };
+      
+      const isNumber = (value: unknown): value is number => {
+        return typeof value === "number" || !isNaN(Number(value));
+      };
+      
+      const toString = (value: unknown): string => {
+        if (typeof value === "string") return value;
+        if (typeof value === "number") return value.toString();
+        return "";
+      };
+      
+      const customFilterFn = (
         row: Row<RowDataType>,
         columnId: string,
-        filterValue: { operator: string; value: string }
-    ): boolean => {
+        filterValue: FilterValue[]
+      ): boolean => {
         const cellValue = row.getValue(columnId);
-        const { operator, value } = filterValue;
-
-        switch (operator) {
+      
+        return filterValue.every(({ operator, value }) => {
+          if (value === undefined) return false;
+      
+          const cellValueStr = toString(cellValue);
+          const filterValueStr = toString(value);
+      
+          switch (operator) {
             case "is_empty":
-                return isEmpty(cellValue);
-
+              return isEmpty(cellValue);
+      
             case "is_not_empty":
-                return !isEmpty(cellValue);
-
+              return !isEmpty(cellValue);
+      
             case "equals":
-                if (isNumber(cellValue) && isNumber(value)) {
-                    return Number(cellValue) === Number(value);
-                }
-                return toString(cellValue) === value;
-
+              return cellValueStr === filterValueStr;
+      
             case "contains":
-                return toString(cellValue).toLowerCase().includes(value.toLowerCase());
-
+              return cellValueStr.toLowerCase().includes(filterValueStr.toLowerCase());
+      
             case "not_contains":
-                return !toString(cellValue).toLowerCase().includes(value.toLowerCase());
-
+              return !cellValueStr.toLowerCase().includes(filterValueStr.toLowerCase());
+      
             case "greater_than":
-                return isNumber(cellValue) && isNumber(value) && Number(cellValue) > Number(value);
-
+              return isNumber(cellValue) && isNumber(value) && Number(cellValue) > Number(value);
+      
             case "less_than":
-                return isNumber(cellValue) && isNumber(value) && Number(cellValue) < Number(value);
-
+              return isNumber(cellValue) && isNumber(value) && Number(cellValue) < Number(value);
+      
             default:
-                return true;
-        }
-    };
+              return true;
+          }
+        });
+      };
+      
+
+
 
 
 
@@ -345,7 +358,7 @@ export default function BaseTable({
                     />
                 ) : (
                     <div
-                        className={`px-2 w-full h-full flex items-center cursor-pointer ${highlight ? "bg-yellow-300" : ""}`}
+                        className={`px-2 w-full h-full flex items-center cursor-pointer ${highlight ? "bg-[#ffd66b]" : ""}`}
                         onClick={() =>
                             setEditingCell({
                                 cellId: row.original.cells.get(columnId)?.cellId ?? 0,
@@ -363,12 +376,36 @@ export default function BaseTable({
 
         return [...baseColumns, ...dynamicColumns];
     }, [columns, editingCell, updateData, rows]);
+
+
+    function transformFilters(filters: ColumnFiltersState): ColumnFiltersState {
+        const groupedFilters: Record<string, unknown[]> = {};
+
+        filters.forEach((filter) => {
+            groupedFilters[filter.id] = groupedFilters[filter.id] ?? [];
+            groupedFilters[filter.id]!.push(filter.value);
+        });
+
+        const transformedFilters: ColumnFiltersState = Object.entries(groupedFilters).map(([id, values]) => ({
+            id,
+            value: values,
+        }));
+
+        return transformedFilters;
+    }
+
+
+
+
+    const transformedFilters = useMemo(() => transformFilters(filter), [filter]);
+
+
     const table = useReactTable({
         data: tableData,
         columns: tableColumns,
         globalFilterFn: Filter,
         state: {
-            columnFilters: filter,
+            columnFilters: transformedFilters,
             globalFilter,
             sorting,
             columnVisibility,
@@ -583,7 +620,6 @@ export default function BaseTable({
             });
         },
     });
-    const visibleColumnCount = table.getVisibleLeafColumns().length;
     return (
         <div>
 
@@ -602,29 +638,61 @@ export default function BaseTable({
                     className="relative h-[1135px] overflow-auto"
                 >
                     {isSearchOpen && (
-                        <div className="text-sm absolute right-2 z-50">
-                            <input
-                                ref={searchInputRef}
-                                value={globalFilter}
-                                onChange={(e) => setGlobalFilter(e.target.value)}
-                                className="px-2 py-1 "
-                                placeholder="Search"
-                            />
-                            <button
-                                onClick={() => {
-                                    setGlobalFilter("");
-                                    setIsSearchOpen(false);
-                                }}
-                                className="ml-2 px-2 bg-gray-500 text-white rounded"
-                            >
-                                ×
-                            </button>
+                        <div
+                            tabIndex={0}
+                            role="button"
+                            className="absolute top-0 right-2 border border-t-0 rounded-b w-[300px] bg-white z-50"
+                        >
+                            <div className="flex items-center">
+                                <input
+                                    ref={searchInputRef}
+                                    value={globalFilter}
+                                    onChange={(e) => setGlobalFilter(e.target.value)}
+                                    className="p-2 flex-grow focus:outline-none text-sm placeholder-gray-500"
+                                    placeholder="Find in view"
+                                    autoComplete="off"
+                                />
+                                <button
+                                    tabIndex={0}
+                                    role="button"
+                                    className="px-2 cursor-pointer text-gray-500"
+                                    onClick={() => {
+                                        setGlobalFilter("");
+                                        setIsSearchOpen(false);
+                                    }}
+                                >
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        fill="currentColor"
+                                        aria-hidden="true"
+                                        className="shape-geometric hover:text-black"
+                                    >
+                                        <use href={`/icons/icon_definitions.svg#X`} />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div className="p-2 text-[10px] bg-[#f2f2f2]">
+                                <div className="text-gray-600 flex items-center">
+                                    <span>Use advanced search options in the</span>
+                                    <svg
+                                        width="16"
+                                        height="16"
+                                        fill="currentColor"
+                                        aria-hidden="true"
+                                        className="text-blue-600 shape-geometric mx-1"
+                                    >
+                                        <use href={`/icons/icon_definitions.svg#ExtensionsFeature`} />
+                                    </svg>
+                                    <button className="text-blue-600 font-bold underline">search extension</button>
+                                </div>
+                                <div className="text-gray-600 text-center">.</div>
+                            </div>
                         </div>
                     )}
 
-
                     <div
-                        className="absolute top-0 left-0 bg-[#fcfcfc] border-r border-gray-300 h-full"
+                        className="absolute top-0 left-0 bg-grey-100 border-r border-gray-300 h-full"
                         style={{
                             width: `${(table.getHeaderGroups()?.[0]?.headers?.[0]?.getSize?.() ?? 0) +
                                 (table.getHeaderGroups()?.[0]?.headers?.[1]?.getSize?.() ?? 0) +
@@ -684,7 +752,6 @@ export default function BaseTable({
 
                             {virtualRows.map((virtualRow) => {
                                 const row = table.getRowModel().rows[virtualRow.index];
-                                const visibleColumnCount = table.getVisibleLeafColumns().length;
                                 if (!row) return null;
 
                                 return (
@@ -692,7 +759,7 @@ export default function BaseTable({
                                         {row.getVisibleCells().map((cell, index) => (
                                             <td
                                                 key={cell.id}
-                                                className={`border-b border-gray-300 ${index === 0 ? "" : "border-r"
+                                                className={`border-b p-0 border-gray-300 ${index === 0 ? "" : "border-r"
                                                     }`}
                                                 style={{ height: "30px" }}
                                             >
@@ -713,10 +780,10 @@ export default function BaseTable({
                                 onClick={handleAddRow}
                             >
                                 <td className="text-center text-lg border-b border-gray-300">+</td>
-                                {Array.from({ length: visibleColumnCount - 1 }).map((_, colIndex) => (
+                                {Array.from({ length: table.getVisibleLeafColumns().length - 1 }).map((_, colIndex) => (
                                     <td
                                         key={colIndex}
-                                        className={`border-b border-gray-300 ${colIndex === 0 || colIndex === visibleColumnCount - 2
+                                        className={`border-b border-gray-300 ${colIndex === 0 || colIndex === table.getVisibleLeafColumns().length - 2
                                             ? "border-r"
                                             : ""
                                             }`}

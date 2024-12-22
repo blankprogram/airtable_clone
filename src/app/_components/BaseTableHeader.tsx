@@ -480,17 +480,24 @@ export function FilterDropdown({
                     label={
                         filter.length === 0
                             ? "Filter"
-                            : filter.length <= 3
-                                ? `Filtered by ${filter
-                                    .map((f) => columns.get(Number(f.id))?.name ?? "Unknown")
-                                    .join(", ")}`
-                                : `Filtered by ${columns.get(Number(filter[0]?.id))?.name ?? "Unknown"} and ${filter.length - 1
-                                } other field${filter.length - 1 > 1 ? "s" : ""}`
+                            : (() => {
+                                const uniqueColumnNames = [
+                                    ...new Set(filter.map((f) => columns.get(Number(f.id))?.name ?? "")),
+                                ];
+                                return uniqueColumnNames.length <= 3
+                                    ? `Filtered by ${uniqueColumnNames.join(", ")}`
+                                    : `Filtered by ${uniqueColumnNames[0]} and ${uniqueColumnNames.length - 1
+                                    } other field${uniqueColumnNames.length - 1 > 1 ? "s" : ""}`;
+                            })()
                     }
                     iconId="FunnelSimple"
-                    className={`${filter.length > 0 ? "bg-[#cff5d1] hover:bg-[#cff5d1] border border-transparent hover:border-[#a3c2a5]" : ""}`}
+                    className={`${filter.length > 0
+                            ? "bg-[#cff5d1] hover:bg-[#cff5d1] border border-transparent hover:border-[#a3c2a5]"
+                            : ""
+                        }`}
                 />
             </DropdownMenu.Trigger>
+
 
 
             <DropdownMenu.Portal>
@@ -554,7 +561,7 @@ export function FilterDropdown({
                                             value={condition.value.operator}
                                             onChange={(value) =>
                                                 updateCondition(index, "value", {
-                                                    operator: value as FilterValue["operator"],
+                                                    operator: value,
                                                     value: condition.value.value ?? "",
                                                 })
                                             }
@@ -635,7 +642,8 @@ function Button({
 }) {
     return (
         <button
-            className={`flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none ${className}`}
+            className={`flex items-center px-2 py-1 rounded ${className.includes("hover:bg-") ? "" : "hover:bg-gray-100"
+                } focus:outline-none ${className}`}
             onClick={onClick}
             {...props}
         >
@@ -653,6 +661,7 @@ function Button({
         </button>
     );
 }
+
 
 
 export default function TableHeader({

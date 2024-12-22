@@ -1,12 +1,6 @@
 export interface FilterValue {
     operator:
-      | "contains"
-      | "not_contains"
-      | "equals"
-      | "greater_than"
-      | "less_than"
-      | "is_empty"
-      | "is_not_empty";
+      string
     value?: string | number;
   }
   
