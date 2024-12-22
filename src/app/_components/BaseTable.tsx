@@ -270,6 +270,7 @@ export default function BaseTable({
                 ),
                 size: 50,
                 enableGlobalFilter: false,
+                enableResizing: false,
 
             },
         ];
@@ -601,12 +602,12 @@ export default function BaseTable({
                     className="relative h-[1135px] overflow-auto"
                 >
                     {isSearchOpen && (
-                        <div className="text-sm absolute top-2 right-2 z-50">
+                        <div className="text-sm absolute right-2 z-50">
                             <input
                                 ref={searchInputRef}
                                 value={globalFilter}
                                 onChange={(e) => setGlobalFilter(e.target.value)}
-                                className="px-2 py-1 border rounded-xl"
+                                className="px-2 py-1 "
                                 placeholder="Search"
                             />
                             <button

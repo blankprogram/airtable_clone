@@ -9,7 +9,7 @@ import { AiOutlinePlus } from "react-icons/ai";
 import { FiChevronDown, FiSearch } from "react-icons/fi";
 import * as Select from "@radix-ui/react-select";
 
-
+type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
 const RadixSelect = ({
     options,
     value,
@@ -23,21 +23,23 @@ const RadixSelect = ({
     onChange: (value: string) => void;
     placeholder?: string;
     width?: string;
-    className?: string
+    className?: string;
 }) => (
     <Select.Root value={value} onValueChange={onChange}>
         <Select.Trigger
-            className={`flex items-center justify-between px-2 py-1.5 text-xs hover:bg-[#f4f4f4] focus:outline-none ${width} ${className}`}
+            className={`flex items-center px-2 py-1.5 text-xs hover:bg-[#f4f4f4] focus:outline-none ${width} ${className}`}
         >
-            <Select.Value placeholder={placeholder} />
-            <Select.Icon className="ml-2">
-                <FiChevronDown className="text-gray-500" />
-            </Select.Icon>
+            <div className="flex-grow truncate text-left ">
+                <Select.Value placeholder={placeholder} />
+            </div>
+
+            <FiChevronDown className="text-gray-500" />
+
         </Select.Trigger>
 
         <Select.Portal>
             <Select.Content
-                className="bg-white border border-gray-300 rounded shadow-lg p-3 w-40 text-xs"
+                className="bg-white border border-gray-300 rounded shadow-2xl p-3 w-40 text-xs"
                 position="popper"
                 sideOffset={5}
             >
@@ -46,9 +48,13 @@ const RadixSelect = ({
                         <Select.Item
                             key={option.value}
                             value={option.value}
-                            className="outline-none flex items-center justify-between p-2 cursor-pointer hover:bg-[#f4f4f4] rounded"
+                            className="truncate outline-none flex items-center p-2 cursor-pointer hover:bg-[#f4f4f4] rounded"
                         >
-                            <Select.ItemText>{option.label}</Select.ItemText>
+                            <Select.ItemText
+
+                            >
+                                {option.label}
+                            </Select.ItemText>
                         </Select.Item>
                     ))}
                 </Select.Viewport>
@@ -58,7 +64,6 @@ const RadixSelect = ({
 );
 
 
-type ColumnData = RouterOutputs["post"]["getTableData"]["columns"];
 function SortingDropdown({
     columns,
     sorting,
@@ -94,22 +99,23 @@ function SortingDropdown({
         }
     };
 
+
     return (
         <DropdownMenu.Root onOpenChange={setIsOpen}>
             <DropdownMenu.Trigger asChild>
-                <button className="flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none">
-                    <svg
-                        width="16"
-                        height="16"
-                        className="mr-1 text-black"
-                        fill="currentColor"
-                        aria-hidden="true"
-                    >
-                        <use href={`/icons/icon_definitions.svg#ArrowsDownUp`} />
-                    </svg>
-                    <span className="text-xs text-gray-700">Sort</span>
-                </button>
+                <Button
+                    label={
+                        sorting.length === 0
+                            ? "Sort"
+                            : `Sorted by ${sorting.length} field${sorting.length > 1 ? "s" : ""}`
+                    }
+                    iconId="ArrowsDownUp"
+                    className={`${sorting.length > 0 ? "bg-[#ffe0cc] border border-transparent hover:border-[#ccb3a3] hover:bg-[#ffe0cc]" : ""
+                        }`}
+                />
             </DropdownMenu.Trigger>
+
+
             <DropdownMenu.Portal>
                 <DropdownMenu.Content
                     className="bg-white border border-gray-300 rounded shadow-xl text-xs min-w-80 overflow-hidden"
@@ -242,6 +248,8 @@ function ColumnVisibilityDropdown({
     visibility: Record<string, boolean>;
     setVisibility: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
+    const hiddenFieldsCount = Object.values(visibility).filter((isVisible) => !isVisible).length;
+
     const [searchTerm, setSearchTerm] = useState("");
 
     const filteredColumns = Array.from(columns.entries()).filter(([_, column]) =>
@@ -267,29 +275,26 @@ function ColumnVisibilityDropdown({
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-                <button className="flex items-center p-1 rounded hover:bg-gray-100 focus:outline-none">
-                    <svg
-                        width="16"
-                        height="16"
-                        className="mr-1 text-black"
-                        fill="currentColor"
-                        aria-hidden="true"
-                        style={{ shapeRendering: "geometricPrecision" }}
-                    >
-                        <use href="/icons/icon_definitions.svg#EyeSlash" />
-                    </svg>
-                    <span className="text-xs text-gray-700">Hide fields</span>
-                </button>
+                <Button
+                    label={
+                        hiddenFieldsCount === 0
+                            ? "Hide fields"
+                            : `${hiddenFieldsCount} hidden field${hiddenFieldsCount > 1 ? "s" : ""}`
+                    }
+                    iconId="EyeSlash"
+                    className={`${hiddenFieldsCount > 0 ? "bg-[#c4ecff] hover:bg-[#c4ecff] border border-transparent hover:border-[#9cbccc]" : ""}`}
+                />
             </DropdownMenu.Trigger>
+
             <DropdownMenu.Portal>
                 <DropdownMenu.Content
-                    className="bg-white border border-gray-300 rounded shadow-2xl p-4 text-sm w-80 "
+                    className="bg-white border border-gray-300 rounded shadow-2xl px-4 py-2 text-sm w-80 "
                     align="start"
                     side="bottom"
                     sideOffset={4}
                 >
                     <div className="flex flex-col space-y-3">
-                        <div className="flex ">
+                        <div className="flex mt-2 ">
                             <input
                                 type="text"
                                 placeholder="Find a field"
@@ -406,7 +411,7 @@ export function FilterDropdown({
         index: number,
         key: "id" | "value",
         value: string | FilterValue
-            
+
     ) => {
         const updatedFilters = [...filter];
 
@@ -471,19 +476,22 @@ export function FilterDropdown({
     return (
         <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-                <button className="flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none">
-                    <svg
-                        width="16"
-                        height="16"
-                        className="mr-1 text-black"
-                        fill="currentColor"
-                        aria-hidden="true"
-                    >
-                        <use href={`/icons/icon_definitions.svg#FunnelSimple`} />
-                    </svg>
-                    <span className="text-xs text-gray-700">Filter</span>
-                </button>
+                <Button
+                    label={
+                        filter.length === 0
+                            ? "Filter"
+                            : filter.length <= 3
+                                ? `Filtered by ${filter
+                                    .map((f) => columns.get(Number(f.id))?.name ?? "Unknown")
+                                    .join(", ")}`
+                                : `Filtered by ${columns.get(Number(filter[0]?.id))?.name ?? "Unknown"} and ${filter.length - 1
+                                } other field${filter.length - 1 > 1 ? "s" : ""}`
+                    }
+                    iconId="FunnelSimple"
+                    className={`${filter.length > 0 ? "bg-[#cff5d1] hover:bg-[#cff5d1] border border-transparent hover:border-[#a3c2a5]" : ""}`}
+                />
             </DropdownMenu.Trigger>
+
 
             <DropdownMenu.Portal>
                 <DropdownMenu.Content
@@ -554,19 +562,24 @@ export function FilterDropdown({
                                             width="w-32"
                                             className="border-r"
                                         />
+                                        <div className="w-32 h-full border-r">
+                                            {condition.value.operator !== "is_empty" && condition.value.operator !== "is_not_empty" &&
+                                                <input
+                                                    type={column.type === "NUMBER" ? "number" : "text"}
+                                                    value={condition.value.value}
+                                                    onChange={(e) =>
+                                                        updateCondition(index, "value", {
+                                                            operator: condition.value.operator,
+                                                            value: e.target.value,
+                                                        })
+                                                    }
+                                                    placeholder="Enter a value"
+                                                    className=" w-full h-full px-2  focus:outline-none"
+                                                />}
 
-                                        <input
-                                            type={column.type === "NUMBER" ? "number" : "text"}
-                                            value={condition.value.value}
-                                            onChange={(e) =>
-                                                updateCondition(index, "value", {
-                                                    operator: condition.value.operator,
-                                                    value: e.target.value,
-                                                })
-                                            }
-                                            placeholder="Enter a value"
-                                            className="w-32 h-full px-2 border-r focus:outline-none"
-                                        />
+
+                                        </div>
+
 
                                         <button
                                             className="w-8 h-full flex items-center justify-center border-r text-black hover:bg-gray-100"
@@ -606,25 +619,25 @@ export function FilterDropdown({
             </DropdownMenu.Portal>
         </DropdownMenu.Root>
     );
-
-
 }
 
 function Button({
     label,
     iconId,
     onClick,
-    extraClass,
+    className = "",
+    ...props
 }: {
     label?: string;
     iconId: string;
     onClick?: () => void;
-    extraClass?: string;
+    className?: string;
 }) {
     return (
         <button
-            className={`flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none ${extraClass}`}
+            className={`flex items-center px-2 py-1 rounded hover:bg-gray-100 focus:outline-none ${className}`}
             onClick={onClick}
+            {...props}
         >
             <svg
                 width="16"
@@ -640,6 +653,7 @@ function Button({
         </button>
     );
 }
+
 
 export default function TableHeader({
     isLoading,
